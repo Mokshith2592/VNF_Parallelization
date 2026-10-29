@@ -1,0 +1,245 @@
+{
+ "_note": "Numbers stated in the text of paper 1 (Xie et al., Section V-C). impVDA = LOA delay reduction vs VDA (%), impBest = vs the best baseline (%), roa.res = ROA normalised resource consumption, roa.saveBest = saving vs the best baseline (%). Read by cpp/src/summary.cpp.",
+ "capacity": {
+  "fig": "Fig. 6(a)",
+  "points": [
+   {
+    "x": 100,
+    "loa": 136.44
+   },
+   {
+    "x": 300,
+    "loa": 116.97
+   }
+  ],
+  "avgImpBest": 2.7,
+  "avgImpVDA": 4,
+  "roa": {
+   "points": [
+    {
+     "x": 100,
+     "res": 0.255
+    },
+    {
+     "x": 300,
+     "res": 0.192
+    }
+   ],
+   "avgSaveBest": 19.6,
+   "avgSaveVDA": 45.1,
+   "range": "15.9–27.1 %"
+  }
+ },
+ "bandwidth": {
+  "fig": "Fig. 7(a)",
+  "points": [
+   {
+    "x": 100,
+    "loa": 114.78,
+    "impVDA": 7.5
+   },
+   {
+    "x": 300,
+    "impVDA": 3.1
+   }
+  ],
+  "avgImpBest": 4.3,
+  "roa": {
+   "points": [
+    {
+     "x": 100,
+     "res": 0.329,
+     "saveBest": 4.4
+    },
+    {
+     "x": 300,
+     "res": 0.193,
+     "saveBest": 24.3
+    }
+   ],
+   "avgSaveBest": 14.7,
+   "avgSaveVDA": 42.5
+  }
+ },
+ "requests": {
+  "fig": "Fig. 8(a)",
+  "points": [
+   {
+    "x": 10,
+    "loa": 110.63,
+    "impVDA": 1
+   },
+   {
+    "x": 50,
+    "loa": 119.41,
+    "impVDA": 5.9
+   }
+  ],
+  "avgImpBest": 3,
+  "roa": {
+   "points": [
+    {
+     "x": 10,
+     "res": 0.275,
+     "saveBest": 21.3
+    },
+    {
+     "x": 50,
+     "res": 0.229,
+     "saveBest": 11.2
+    }
+   ],
+   "avgSaveBest": 15.4
+  }
+ },
+ "netsize": {
+  "fig": "Fig. 9(a)",
+  "points": [
+   {
+    "x": 20,
+    "loa": 98.65,
+    "impVDA": 10.6
+   },
+   {
+    "x": 100,
+    "loa": 127.36,
+    "impVDA": 1.1
+   }
+  ],
+  "avgImpBest": 5.4,
+  "jain": {
+   "VDA": 0.627,
+   "LOA": 0.615,
+   "ROA": 0.379
+  },
+  "cv": {
+   "LOA": 0.813,
+   "ROA": 1.357
+  },
+  "roa": {
+   "points": [
+    {
+     "x": 20,
+     "res": 0.185,
+     "saveBest": 13.6
+    },
+    {
+     "x": 100,
+     "res": 0.223,
+     "saveBest": 14.9
+    }
+   ],
+   "avgSaveBest": 13.4
+  }
+ },
+ "sfclen": {
+  "fig": "Fig. 10(a)",
+  "points": [
+   {
+    "x": 5,
+    "loa": 95.09,
+    "impVDA": 2.8
+   },
+   {
+    "x": 10,
+    "loa": 154.13,
+    "impVDA": 3.3
+   }
+  ],
+  "avgImpBest": 3.6,
+  "roa": {
+   "points": [
+    {
+     "x": 5,
+     "res": 0.144,
+     "saveBest": 13.5
+    },
+    {
+     "x": 10,
+     "res": 0.216,
+     "saveBest": 18
+    }
+   ],
+   "avgSaveBest": 16.1
+  }
+ },
+ "parallel": {
+  "fig": "Fig. 12(a)",
+  "points": [
+   {
+    "x": 0.1,
+    "loa": 118.05,
+    "impVDA": 3.8
+   },
+   {
+    "x": 0.9,
+    "loa": 117.91,
+    "impVDA": 3.7
+   }
+  ],
+  "avgImpBest": 4.2,
+  "roa": {
+   "points": [
+    {
+     "x": 0.1,
+     "res": 0.189,
+     "saveBest": 20
+    },
+    {
+     "x": 0.9,
+     "res": 0.227,
+     "saveBest": 8.4
+    }
+   ],
+   "avgSaveBest": 16.3
+  }
+ },
+ "heavytail": {
+  "fig": "Fig. 13(a)",
+  "uniformLoa": 119.74,
+  "uniformImpBest": 4.8,
+  "heavyLoa": 139.36,
+  "heavyImpBest": 5.1,
+  "points": [],
+  "roa": {
+   "uniformRes": 0.248,
+   "uniformSave": 13.8,
+   "heavyRes": 0.193,
+   "heavySave": 15.6,
+   "points": [],
+   "avgSaveBest": 15.6
+  }
+ },
+ "weights": {
+  "fig": "Fig. 11",
+  "points": [
+   {
+    "x": 0.1,
+    "loa": 119.14,
+    "impVDA": 2.6
+   },
+   {
+    "x": 0.9,
+    "loa": 119.01,
+    "impVDA": 2.8
+   }
+  ],
+  "avgImpBest": 2.5,
+  "roa": {
+   "points": [
+    {
+     "x": 0.1,
+     "res": 0.262,
+     "saveBest": 32.1
+    },
+    {
+     "x": 0.9,
+     "res": 0.104,
+     "saveBest": 2.9
+    }
+   ],
+   "avgSaveBest": 15.6,
+   "avgSaveVDA": 43.8
+  }
+ }
+}

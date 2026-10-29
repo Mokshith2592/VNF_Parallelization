@@ -1,0 +1,225 @@
+{
+ "nodes": [
+  {
+   "name": "A",
+   "cap": 60,
+   "x": 60,
+   "y": 170,
+   "fault": 0,
+   "inst": ""
+  },
+  {
+   "name": "B",
+   "cap": 45,
+   "x": 190,
+   "y": 60,
+   "fault": 0,
+   "inst": ""
+  },
+  {
+   "name": "C",
+   "cap": 50,
+   "x": 200,
+   "y": 170,
+   "fault": 0,
+   "inst": ""
+  },
+  {
+   "name": "D",
+   "cap": 45,
+   "x": 190,
+   "y": 280,
+   "fault": 0,
+   "inst": ""
+  },
+  {
+   "name": "E",
+   "cap": 55,
+   "x": 330,
+   "y": 90,
+   "fault": 0,
+   "inst": ""
+  },
+  {
+   "name": "F",
+   "cap": 50,
+   "x": 340,
+   "y": 250,
+   "fault": 0,
+   "inst": ""
+  },
+  {
+   "name": "G",
+   "cap": 45,
+   "x": 450,
+   "y": 170,
+   "fault": 0,
+   "inst": ""
+  },
+  {
+   "name": "H",
+   "cap": 60,
+   "x": 560,
+   "y": 170,
+   "fault": 0,
+   "inst": ""
+  }
+ ],
+ "links": [
+  {
+   "a": 0,
+   "b": 1,
+   "delay": 7,
+   "bw": 300
+  },
+  {
+   "a": 0,
+   "b": 2,
+   "delay": 9,
+   "bw": 300
+  },
+  {
+   "a": 0,
+   "b": 3,
+   "delay": 8,
+   "bw": 300
+  },
+  {
+   "a": 1,
+   "b": 2,
+   "delay": 5,
+   "bw": 300
+  },
+  {
+   "a": 2,
+   "b": 3,
+   "delay": 6,
+   "bw": 300
+  },
+  {
+   "a": 1,
+   "b": 4,
+   "delay": 8,
+   "bw": 300
+  },
+  {
+   "a": 2,
+   "b": 4,
+   "delay": 10,
+   "bw": 300
+  },
+  {
+   "a": 2,
+   "b": 5,
+   "delay": 9,
+   "bw": 300
+  },
+  {
+   "a": 3,
+   "b": 5,
+   "delay": 7,
+   "bw": 300
+  },
+  {
+   "a": 4,
+   "b": 6,
+   "delay": 6,
+   "bw": 300
+  },
+  {
+   "a": 5,
+   "b": 6,
+   "delay": 8,
+   "bw": 300
+  },
+  {
+   "a": 4,
+   "b": 5,
+   "delay": 11,
+   "bw": 300
+  },
+  {
+   "a": 6,
+   "b": 7,
+   "delay": 5,
+   "bw": 300
+  },
+  {
+   "a": 4,
+   "b": 7,
+   "delay": 14,
+   "bw": 300
+  },
+  {
+   "a": 5,
+   "b": 7,
+   "delay": 13,
+   "bw": 300
+  }
+ ],
+ "src": 0,
+ "dst": 7,
+ "vnfs": [
+  {
+   "name": "f1",
+   "level": 1,
+   "proc": 6,
+   "dem": 25,
+   "fault": 0
+  },
+  {
+   "name": "f2",
+   "level": 2,
+   "proc": 14,
+   "dem": 20,
+   "fault": 0
+  },
+  {
+   "name": "f3",
+   "level": 2,
+   "proc": 11,
+   "dem": 20,
+   "fault": 0
+  },
+  {
+   "name": "f4",
+   "level": 2,
+   "proc": 9,
+   "dem": 20,
+   "fault": 0
+  },
+  {
+   "name": "f5",
+   "level": 3,
+   "proc": 8,
+   "dem": 30,
+   "fault": 0
+  },
+  {
+   "name": "f6",
+   "level": 4,
+   "proc": 5,
+   "dem": 20,
+   "fault": 0
+  }
+ ],
+ "trep": 2,
+ "tint": 2,
+ "tmax": 300,
+ "kmax": 4096,
+ "candCap": 30000,
+ "rmin": 0,
+ "alpha": 0,
+ "seed": true,
+ "order": true,
+ "compare": true,
+ "breq": 50,
+ "qcpu": 20,
+ "instCap": 100,
+ "wBw": 0.5,
+ "roa": true,
+ "pkt": 1,
+ "isfg": "all",
+ "full": true,
+ "fullMs": 20000
+}

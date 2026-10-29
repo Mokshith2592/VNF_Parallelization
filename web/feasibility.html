@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Full-Search Feasibility</title>
+  <meta name="description" content="How many VNFs and nodes the full-combination search (every I-SFG × every placement) can handle, measured by loa_hybrid.exe --feasibility.">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700;12..96,750&family=IBM+Plex+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div>
+      <h1>How large can n be?</h1>
+      <p>The full-combination search checks every I-SFG (paper 2) × every placement, with dividing and
+        merging costs, instead of only the schemes built around paper 1's anchor path. Plain enumeration
+        grows as <b>|I-SFG| × |V|<sup>|F|</sup></b>; branch and bound cuts most of it. Each cell below is
+        measured by <code>loa_hybrid.exe --feasibility</code>.</p>
+    </div>
+    <nav class="modes" aria-label="View">
+      <a class="navlink" href="index.html">Calculator</a>
+      <a class="navlink" aria-current="true" href="feasibility.html">How large can n be?</a>
+      <a class="navlink" href="results.html">Paper comparison</a>
+    </nav>
+  </header>
+
+  <section class="panel">
+    <h2>Size of the space <small>structures of one dependency level, counted by model.cpp</small></h2>
+    <div class="tbl-wrap" id="counts"></div>
+    <p class="hint" id="setting"></p>
+  </section>
+
+  <div id="scenarios"></div>
+
+  <details class="notes">
+    <summary>How to read this page</summary>
+    <ul>
+      <li><b>n</b> is the number of VNFs in the request, |F|. The number of MEC nodes |V| is the other axis.</li>
+      <li><b>Interactive</b>: every instance finished, and none took more than 1 s. <b>Feasible</b>: every instance
+        finished inside the time budget. <b>Partial</b>: some did not. <b>Infeasible</b>: none did. Once a chain length
+        runs out of budget on a network, longer chains on that network are not run.</li>
+      <li>A finished run is a proof of optimality: every scheme it did not evaluate was cut by a valid lower bound.</li>
+      <li><b>Plain enumeration</b> = measured time of one evaluation × the size of the space: what checking every
+        combination one by one would cost.</li>
+      <li><b>LOA</b> is paper 1's algorithm on its own, with the limits our experiments use (k ≤ 256, 2000 candidates per
+        anchor). “No scheme” means it hit those limits before finding a feasible scheme, although one exists.</li>
+      <li>Re-run: <code>cpp\bin\loa_hybrid.exe --feasibility --runs 5 --budget 10000 --out ..\web\data\feasibility.json</code></li>
+    </ul>
+  </details>
+</div>
+
+<script src="js/feasibility.js"></script>
+</body>
+</html>

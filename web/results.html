@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Paper vs C++ Results</title>
+  <meta name="description" content="Paper 1's Section V experiments re-run with the C++ LOA, hybrid and VDA implementations, compared with the numbers the paper reports.">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700;12..96,750&family=IBM+Plex+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div>
+      <h1>Paper 1 vs our C++ run</h1>
+      <p>The delay experiments of paper 1 (Section V-C) re-run with <code>loa_experiments.exe</code>:
+        LOA and ROA (plain and VDA-seeded), VDA (paper 2) and two simple baselines on random
+        GT-ITM-style networks, compared with the values the paper reports.</p>
+    </div>
+    <nav class="modes" aria-label="View">
+      <a class="navlink" href="index.html">Calculator</a>
+      <a class="navlink" href="feasibility.html">How large can n be?</a>
+      <a class="navlink" aria-current="true" href="results.html">Paper comparison</a>
+    </nav>
+  </header>
+
+  <section class="panel">
+    <h2>Latency side <small>LOA (Algorithms 2 + 3): delay reduction relative to VDA, ours vs the paper</small></h2>
+    <div class="tbl-wrap" id="summary"></div>
+    <h2 class="mt">Resource side <small>ROA (Algorithms 4 + 5): resource saving, ours vs the paper</small></h2>
+    <div class="tbl-wrap" id="summaryRes"></div>
+    <p class="hint" id="setupNote"></p>
+  </section>
+
+  <div id="charts"></div>
+
+  <details class="notes">
+    <summary>What is and is not comparable</summary>
+    <ul>
+      <li><b>Same setting:</b> 60 nodes, SFC length 7, 30 requests, parallelism 0.5, link delay U[10,15] ms,
+        link bandwidth U[100,300] Mbps, node capacity U[100,300], VNF demand U[20,50], processing
+        U[0.045,0.2] ms per packet, data size U[50,100] packets, request bandwidth U[30,60] Mbps.</li>
+      <li><b>Different:</b> random topologies (Waxman, not the paper's exact GT-ITM graphs); instance capacity
+        100 with per-request load U[10,30] (the paper does not give them); replication and integration cost
+        0.02 ms per packet per extra branch (the paper does not give τ);
+        LOA search capped at k = 256 and 200 candidates per anchor; 10 runs per point, as in the paper.</li>
+      <li><b>Not reproduced:</b> the DNF / ParaDSP / PODPR baselines, the heat-map (Fig. 14) and the scalability index (Fig. 16).</li>
+      <li><b>Serial* and Parallel*</b> are our stand-ins (fully serial or fully parallel layers, placed with VDA),
+        not the exact algorithms of reference [17].</li>
+      <li><b>Absolute delays</b> depend on the random topologies and τ, so compare the <i>shape</i> of the curves
+        and the <i>relative</i> LOA-vs-VDA gap, not the raw milliseconds.</li>
+    </ul>
+  </details>
+</div>
+
+<div class="tip" id="tip" hidden></div>
+
+<script src="js/results.js"></script>
+</body>
+</html>

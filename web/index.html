@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>LOA Hybrid</title>
+  <meta name="description" content="Paper 1 (LOA / ROA) merged with paper 2 (I-SFG, SCA + VDA): enter a MEC network and service chain, the C++ engine searches every I-SFG × placement and certifies the optimum.">
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700;12..96,750&family=IBM+Plex+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ═══════════════════════ HEADER ═══════════════════════ -->
+  <header class="top">
+    <div>
+      <h1>LOA Hybrid</h1>
+      <p>Paper 2 (SCA + VDA) gives a quick first answer, paper 1 (LOA / ROA) improves it with
+        its anchor-based search, and the full-combination search then covers every I-SFG
+        × every placement, with packet dividing and merging costs, to prove the optimum.
+        Every number on this page comes from the C++ engine.</p>
+    </div>
+    <div class="topright">
+      <a class="navlink" href="feasibility.html">How large can n be?</a>
+      <a class="navlink" href="results.html">Paper comparison</a>
+      <span class="engine" id="engine" data-state="wait">Checking C++ engine…</span>
+      <nav class="modes" aria-label="View">
+        <button id="modeSetup" aria-current="true">Setup</button>
+        <button id="modeResult" disabled>Results</button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- ═══════════════════════ SETUP ════════════════════════ -->
+  <section id="setup">
+
+    <!-- Preset Cards -->
+    <div class="presets" id="presets"></div>
+
+    <div class="grid2">
+
+      <!-- Network Editor -->
+      <section class="panel">
+        <h2>MEC network <small>drag nodes, edit delays, capacities and fault rates</small></h2>
+        <svg id="netEdit" class="canvas edit" viewBox="0 0 600 340"
+             role="img" aria-label="MEC network editor"></svg>
+        <div class="endpoints">
+          <label><span>Ingress node (s<sub>u</sub>)</span>
+            <select class="num" id="selSrc" data-bind="src"></select>
+          </label>
+          <label><span>Egress node (d<sub>u</sub>)</span>
+            <select class="num" id="selDst" data-bind="dst"></select>
+          </label>
+        </div>
+        <div class="rows" id="nodeRows"></div>
+        <div class="hint">Capacity = total demand of the VNFs that may share a node. Fault β<sub>v</sub> is used only when R<sub>min</sub> &gt; 0.</div>
+        <div class="rows" id="linkRows"></div>
+        <div class="addrow" id="linkAdd"></div>
+      </section>
+
+      <!-- Service Chain Editor -->
+      <section class="panel">
+        <h2>Service chain request <small>same level = may run in parallel</small></h2>
+        <div class="rows" id="vnfRows"></div>
+        <div class="addrow">
+          <button class="btn sm" data-act="addVnf">Add VNF</button>
+        </div>
+
+        <h3 class="subh">Delay model</h3>
+        <div class="params" id="params"></div>
+
+        <h3 class="subh">Reliability <small>paper 2, Solution C</small></h3>
+        <div class="params" id="relParams"></div>
+
+        <h3 class="subh">Resources <small>paper 1, ROA (Algorithms 4 + 5)</small></h3>
+        <div class="params" id="resParams"></div>
+
+        <h3 class="subh">Search limits and switches</h3>
+        <div class="params" id="limParams"></div>
+        <div class="toggles" id="toggles"></div>
+
+        <div class="summary" id="summary"></div>
+        <div class="tbl-wrap" id="space"></div>
+        <div style="margin-top:14px">
+          <button class="btn primary big" id="runBtn" data-act="run">Run C++ engine</button>
+          <span class="runmsg" id="runMsg"></span>
+        </div>
+      </section>
+
+    </div><!-- .grid2 -->
+  </section><!-- #setup -->
+
+  <!-- ═══════════════════════ RESULTS ══════════════════════ -->
+  <section id="result" hidden>
+
+    <!-- Bar -->
+    <div class="deck">
+      <button class="btn" data-act="toSetup">Back to setup</button>
+      <button class="btn primary" data-act="run">Run again</button>
+      <span class="sp"></span>
+      <span class="count" id="runInfo"></span>
+    </div>
+
+    <!-- Key stats -->
+    <div class="stats" id="stats"></div>
+
+    <div class="dgrid">
+      <!-- Left column -->
+      <div class="stack">
+        <section class="panel narr" id="cert"></section>
+        <section class="panel">
+          <div class="tabs" id="tabs"></div>
+          <div class="vis" id="vis"></div>
+        </section>
+      </div>
+
+      <!-- Right column -->
+      <div class="stack">
+        <section class="panel lm" id="lm"></section>
+        <section class="panel">
+          <h2>Improved solution flow <small>what ran, in which C++ file</small></h2>
+          <div id="flow"></div>
+        </section>
+      </div>
+    </div>
+
+    <!-- ROA: resource-minimising scheme -->
+    <div class="dgrid mt" id="roaGrid">
+      <section class="panel narr" id="certRes"></section>
+      <section class="panel lm" id="lmRes"></section>
+    </div>
+
+    <!-- Full-combination search -->
+    <section class="panel mt" id="fullPanel">
+      <h2>Full-combination search <small>every I-SFG × every placement, branch and bound (full.cpp)</small></h2>
+      <div id="full"></div>
+    </section>
+
+    <!-- Comparison -->
+    <section class="panel mt">
+      <h2>Paper 1 vs paper 2 vs full search <small>latency from evalScheme(), resources from resourceCost()</small></h2>
+      <div class="tbl-wrap" id="cmp"></div>
+    </section>
+
+    <div class="grid2 mt">
+      <!-- Seed effect -->
+      <section class="panel">
+        <h2>Effect of the VDA seed <small>Solution A: LOA with vs without the seed</small></h2>
+        <div id="seedFx"></div>
+      </section>
+
+      <!-- LOA trace -->
+      <section class="panel">
+        <h2>Search trace <small>events reported by loa.cpp (LOA and ROA)</small></h2>
+        <div class="tabs" id="traceTabs"></div>
+        <div class="tbl-wrap" id="trace"></div>
+      </section>
+    </div>
+
+    <!-- Raw report -->
+    <details class="notes">
+      <summary>Raw C++ report (JSON returned by /api/run)</summary>
+      <pre class="raw" id="raw"></pre>
+    </details>
+
+  </section><!-- #result -->
+
+  <!-- ═══════════════════════ NOTES ════════════════════════ -->
+  <details class="notes">
+    <summary>How the hybrid works</summary>
+    <ul>
+      <li><b>1. Model</b> (<code>model.cpp</code>): Floyd-Warshall shortest delays, dependency levels,
+        every I-SFG of each level (series-parallel: e.g. (f2 → f3) ∥ f4, paper 2 Fig. 1), and the
+        number of DPG paths. Latency = longest branch of link delay + μ·l<sub>u</sub> +
+        (out − 1)·τ<sub>rep</sub>·l<sub>u</sub> (dividing) + (in − 1)·τ<sub>int</sub>·l<sub>u</sub> (merging).</li>
+      <li><b>2. Seed</b> (<code>sca_vda.cpp</code>): SCA picks the I-SFG with the lowest
+        placement-free delay; VDA places VNFs greedily near their predecessors.</li>
+      <li><b>3. LOA / ROA</b> (<code>loa.cpp</code>, paper 1): k cheapest DPG paths → feasibility →
+        stability filter → coverage → anchors → prune when the next path is costlier than the best.
+        The anchor's VNFs keep their hosts, so only part of the space is looked at.</li>
+      <li><b>4. Full search</b> (<code>full.cpp</code>): every I-SFG (in order of its placement-free
+        delay) × every placement, branch and bound, starting from the best of steps 2 and 3.</li>
+      <li><b>5. Certify</b> (<code>hybrid.cpp</code>):
+        <i>Optimal</i> when the full search finished;
+        <i>Optimal (proven)</i> when it hit its time budget but LOA stopped on its own bound (latency only);
+        <i>Bounded</i> otherwise: the best scheme found, with paper 2's Theorem 1 bound.</li>
+    </ul>
+  </details>
+
+</div><!-- .wrap -->
+
+<!-- ═══════════════════════ SCRIPTS ══════════════════════════ -->
+<!--
+  Load order matters — each file depends on the globals from the file above it:
+    presets.js  → PRESETS
+    api.js      → checkEngine, runEngine        (talks to the C++ server)
+    render.js   → result renderers              (reads REPORT, RUNCFG)
+    ui.js       → setup forms + event delegation
+    main.js     → global state + bootstrap
+-->
+<script src="data/presets.js"></script>
+<script src="js/api.js"></script>
+<script src="js/render.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/main.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,14 @@
+# build output (rebuild with cpp/build.bat or make)
+cpp/bin/
+*.exe
+*.o
+
+# raw experiment output; finished files are copied to web/data/results/
+cpp/results/
+*.tmp
+
+# editor / OS
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store
