@@ -181,7 +181,13 @@ RunStats runSequence(Algo algo, const Params& P, const Topo& T0, const std::vect
     c.seed = algo == A_HYBRID || algo == A_HROA; c.order = true; c.compare = false; c.roa = false;
     c.breq = q.b; c.qcpu = q.qcpu; c.instCap = P.instCap; c.wBw = P.wBw;
     c.instances = inst;
-    if (!validateConfig(c).empty()) continue;
+    const std::string bad = validateConfig(c);
+    if (!bad.empty()) {
+      // say so once instead of silently rejecting every request
+      static bool warned = false;
+      if (!warned) { std::printf("  WARNING: request rejected by validateConfig: %s\n", bad.c_str()); warned = true; }
+      continue;
+    }
 
     const double t0 = nowMs();
     Model M = buildModel(c);
@@ -284,8 +290,8 @@ std::vector<Experiment> experiments() {
     { "requests",  "Impact of number of requests (Fig. 8a)", "Number of requests",
       { 10, 20, 30, 40, 50 }, [](Params& p, double x) { p.requests = static_cast<int>(x); } },
     { "netsize",   "Impact of network size (Fig. 9a)", "Number of edge nodes",
-      // paper 1 uses 20..100; 10, 30, 50, 70, 90, 120 and 150 are extra points of ours
-      { 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 120, 150 }, [](Params& p, double x) { p.nodes = static_cast<int>(x); } },
+      // paper 1 uses 20..100; 10, 30, 50, 70, 90 and 120..300 are extra points of ours
+      { 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 120, 150, 200, 250, 300 }, [](Params& p, double x) { p.nodes = static_cast<int>(x); } },
     { "sfclen",    "Impact of SFC length (Fig. 10a)", "SFC length",
       { 5, 6, 7, 8, 9, 10 }, [](Params& p, double x) { p.sfcLen = static_cast<int>(x); } },
     { "parallel",  "Impact of VNF parallelism (Fig. 12a)", "Degree of parallelism",

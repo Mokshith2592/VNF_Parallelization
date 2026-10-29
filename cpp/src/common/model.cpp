@@ -98,7 +98,7 @@ Config parseConfig(const json::Value& v) {
 std::string validateConfig(const Config& c) {
   const int n = static_cast<int>(c.nodes.size());
   if (n < 2)  return "Need at least 2 MEC nodes.";
-  if (n > 128) return "At most 128 MEC nodes are supported.";
+  if (n > 500) return "At most 500 MEC nodes are supported.";
   if (c.vnfs.empty())     return "Add at least one VNF.";
   if (c.vnfs.size() > 16) return "At most 16 VNFs are supported.";
   std::map<int, int> perLevel;
