@@ -285,12 +285,14 @@ std::vector<Structure> layerStructures(const std::vector<int>& items, bool allIs
 }
 
 /**
- * Placement-free delay of one level (every link delay = 0): the fork into the
- * level, the longest internal branch, and the merge out of it. This is what
- * paper 2's SCA minimises. Levels are joined all-to-all, so the I-SFG's
- * placement-free delay is the sum over its levels.
+ * Delay of one level before placement: the fork into the level, the longest
+ * internal branch, and the merge out of it, with `hopDelay` per link inside
+ * the level. Levels are joined all-to-all, so an I-SFG's delay is the sum over
+ * its levels plus a constant number of hops between them.
+ *   hopDelay = 0:        placement-free lower bound, used by the full search
+ *   hopDelay = M.lavg:   the estimate paper 2's SCA minimises (Eqs. 15-16)
  */
-double layerScore(const Model& M, const Structure& st) {
+double layerScore(const Model& M, const Structure& st, double hopDelay) {
   if (st.in.empty()) return 0;
   std::map<int, int> inDeg, outDeg;
   for (const auto& e : st.edges) { outDeg[e.first]++; inDeg[e.second]++; }
@@ -305,7 +307,7 @@ double layerScore(const Model& M, const Structure& st) {
     const double here = best[f] + node;
     if (outDeg[f] == 0) longest = std::max(longest, here);
     for (const auto& e : st.edges) if (e.first == f) {
-      const double v = here + (outDeg[f] - 1) * M.trep;
+      const double v = here + (outDeg[f] - 1) * M.trep + hopDelay;
       if (v > best[e.second]) best[e.second] = v;
       if (--left[e.second] == 0) ready.push_back(e.second);
     }
@@ -342,6 +344,11 @@ Model buildModel(const Config& cfg) {
           M.d[i][j]  = M.d[i][m] + M.d[m][j];
           M.nx[i][j] = M.nx[i][m];
         }
+
+  // Average delay between two nodes: paper 2's l-hat, the link delay SCA assumes before placement
+  double dSum = 0; int dPairs = 0;
+  for (int i = 0; i < n; i++) for (int j = 0; j < n; j++) if (i != j && M.d[i][j] < INF) { dSum += M.d[i][j]; dPairs++; }
+  M.lavg = dPairs ? dSum / dPairs : 0;
 
   // Fewest-hop routes (ties broken by delay): what ROA uses to save bandwidth
   M.hop.assign(n, std::vector<int>(n, 1 << 29));
@@ -399,7 +406,7 @@ Model buildModel(const Config& cfg) {
   for (int li = 0; li < M.L; li++) {
     auto parts = layerStructures(M.layers[li], cfg.allIsfg);
     std::vector<double> sc(parts.size());
-    for (std::size_t i = 0; i < parts.size(); i++) sc[i] = layerScore(M, parts[i]);
+    for (std::size_t i = 0; i < parts.size(); i++) sc[i] = layerScore(M, parts[i], 0);
     if (cfg.order) {
       std::vector<std::size_t> idx(parts.size());
       std::iota(idx.begin(), idx.end(), 0);
@@ -408,8 +415,11 @@ Model buildModel(const Config& cfg) {
       for (auto i : idx) { p2.push_back(std::move(parts[i])); s2.push_back(sc[i]); }
       parts.swap(p2); sc.swap(s2);
     }
+    std::vector<double> est(parts.size());
+    for (std::size_t i = 0; i < parts.size(); i++) est[i] = layerScore(M, parts[i], M.lavg);
     M.structs.push_back(std::move(parts));
     M.structScore.push_back(std::move(sc));
+    M.scaScore.push_back(std::move(est));
   }
   M.totalPaths = countPaths(M);
   return M;

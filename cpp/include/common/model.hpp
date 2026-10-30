@@ -116,8 +116,10 @@ struct Model {
   std::vector<std::vector<int>> layers;
   std::vector<std::vector<Structure>> structs;  // per level, SCA-ranked if cfg.order
   std::vector<std::vector<double>>    structScore;
+  std::vector<std::vector<double>>    scaScore;     // structScore + average link delay per internal hop
   BigCount totalPaths;
   double lmin = INF;                    // smallest link delay (Theorem 1)
+  double lavg = 0;                      // average delay between two nodes (paper 2, l-hat)
 };
 
 Model buildModel(const Config& cfg);

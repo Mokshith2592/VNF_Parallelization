@@ -23,6 +23,7 @@
 #include "common/model.hpp"
 #include "paper2/sca_vda.hpp"
 #include "paper1/loa.hpp"
+#include "hybrid/full.hpp"
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
@@ -40,6 +41,15 @@ long g_cand = 20000, g_kmax = 4096;
 int g_reqOverride = 0;
 bool g_verbose = false;
 bool g_diag = false;
+
+// --paired: every request is solved by plain LOA, the seeded hybrid and the full search on
+// the same model (same residual network). The network then evolves with the best scheme.
+bool g_paired = false;
+double g_fullMs = 2000;
+struct PairStats {
+  int reqs = 0, loaFound = 0, bestFound = 0, complete = 0, both = 0, better = 0, loaMissed = 0;
+  double loaSum = 0, hybSum = 0, bestSum = 0, maxGainPct = 0, loaMs = 0, fullMs = 0;
+} g_pair;
 bool g_allIsfg = true;   // --staged: only stage sequences inside a level (the earlier model)
 
 // ─── Parameters of one experiment point ───────────────────────
@@ -149,7 +159,7 @@ struct RunStats {
   double delaySum = 0, bwSum = 0, cpuSum = 0, resSum = 0;
   int accepted = 0, total = 0;
   double ms = 0, jain = 0, cv = 0;
-  long proven = 0;
+  long proven = 0, limited = 0;   // limited: search stopped on kmax or the candidate cap
 };
 
 RunStats runSequence(Algo algo, const Params& P, const Topo& T0, const std::vector<VnfType>& cat,
@@ -176,7 +186,7 @@ RunStats runSequence(Algo algo, const Params& P, const Topo& T0, const std::vect
     }
     c.src = q.src; c.dst = q.dst;
     c.trep = P.tauRep; c.tint = P.tauInt; c.pkt = q.l; c.tmax = 1e6;
-    c.allIsfg = g_allIsfg; c.full = false;
+    c.allIsfg = g_allIsfg; c.full = false; c.fullMs = g_fullMs;
     c.kmax = g_kmax; c.candCap = g_cand;
     c.seed = algo == A_HYBRID || algo == A_HROA; c.order = true; c.compare = false; c.roa = false;
     c.breq = q.b; c.qcpu = q.qcpu; c.instCap = P.instCap; c.wBw = P.wBw;
@@ -202,8 +212,31 @@ RunStats runSequence(Algo algo, const Params& P, const Topo& T0, const std::vect
       }
       LoaResult r = runLOA(M, algo == A_HYBRID && seed.ok ? &seed : nullptr);
       s = r.best;
+      if (g_paired && algo == A_HYBRID) {
+        double t1 = nowMs();
+        const LoaResult plain = runLOA(M, nullptr);
+        g_pair.loaMs += nowMs() - t1;
+        t1 = nowMs();
+        const FullResult fr = runFull(M, Objective::Latency, r.best.ok ? &r.best : nullptr);
+        g_pair.fullMs += nowMs() - t1;
+        g_pair.reqs++;
+        if (plain.best.ok) g_pair.loaFound++;
+        if (fr.best.ok) g_pair.bestFound++;
+        if (fr.complete) g_pair.complete++;
+        if (fr.best.ok && !plain.best.ok) g_pair.loaMissed++;
+        if (fr.best.ok && plain.best.ok) {
+          g_pair.both++;
+          g_pair.loaSum += plain.best.lat; g_pair.hybSum += r.best.lat; g_pair.bestSum += fr.best.lat;
+          if (fr.best.lat < plain.best.lat - 1e-6) {
+            g_pair.better++;
+            g_pair.maxGainPct = std::max(g_pair.maxGainPct, (plain.best.lat - fr.best.lat) / plain.best.lat * 100);
+          }
+        }
+        if (fr.best.ok) s = fr.best;
+      }
       if (g_verbose) std::printf("    [%s] L=%d rounds=%d k=%ld paths=%ld anchors=%ld cand=%.0f removed=%ld stop=%s lat=%.1f ms=%.0f\n", ALGO_NAME[algo], M.L, r.st.rounds, r.st.finalK, r.st.pathsGenerated, r.st.anchors, r.st.candidates, r.st.stabilityRemoved, stopName(r.stop), s.lat, r.st.ms);
       if (r.stop != Stop::KLimit && !r.st.capped && r.st.stabilityRemoved == 0) st.proven++;
+      if (r.stop == Stop::KLimit || r.st.capped) st.limited++;
     } else if (algo == A_ROA || algo == A_HROA) {
       Scheme seed;
       if (algo == A_HROA) {
@@ -220,6 +253,7 @@ RunStats runSequence(Algo algo, const Params& P, const Topo& T0, const std::vect
       }
       if (g_verbose) std::printf("    [%s] L=%d rounds=%d k=%ld paths=%ld infeas=%ld anchors=%ld cand=%.0f removed=%ld stop=%s cost=%.3f ms=%.0f\n", ALGO_NAME[algo], M.L, r.st.rounds, r.st.finalK, r.st.pathsGenerated, r.st.infeasiblePaths, r.st.anchors, r.st.candidates, r.st.stabilityRemoved, stopName(r.stop), r.bestCost, r.st.ms);
       if (r.stop != Stop::KLimit && !r.st.capped && r.st.stabilityRemoved == 0) st.proven++;
+      if (r.stop == Stop::KLimit || r.st.capped) st.limited++;
     } else if (algo == A_VDA) {
       s = runVDA(M, runSCA(M).g).scheme;
     } else {
@@ -321,6 +355,8 @@ int main(int argc, char** argv) {
     else if (a == "--kmax" && i + 1 < argc) g_kmax = std::atol(argv[++i]);
     else if (a == "--verbose") g_verbose = true;
     else if (a == "--diag") g_diag = true;
+    else if (a == "--paired") g_paired = true;
+    else if (a == "--full-ms" && i + 1 < argc) g_fullMs = std::atof(argv[++i]);
     else if (a == "--reqs" && i + 1 < argc) g_reqOverride = std::atoi(argv[++i]);
     else if (a == "--staged") g_allIsfg = false;
     else { std::printf("usage: loa_experiments [--runs N] [--only id] [--out file.json]\n"); return 0; }
@@ -346,16 +382,18 @@ int main(int argc, char** argv) {
     for (std::size_t xi = 0; xi < E.xs.size(); xi++) {
       const double x = E.xs[xi];
       Params P; E.apply(P, x);
+      g_pair = PairStats();
       if (g_reqOverride) P.requests = g_reqOverride;
       // per algorithm, per run: average delay of that run
       std::vector<std::vector<double>> delay(A_COUNT), acc(A_COUNT), ms(A_COUNT), jain(A_COUNT), prov(A_COUNT),
-                                       bwv(A_COUNT), cpuv(A_COUNT), cvv(A_COUNT), resv(A_COUNT);
+                                       bwv(A_COUNT), cpuv(A_COUNT), cvv(A_COUNT), resv(A_COUNT), lim(A_COUNT);
       for (int r = 0; r < runs; r++) {
         std::mt19937 rng(static_cast<unsigned>(1000003u * (r + 1) + 7919u * (xi + 1) + static_cast<unsigned>(ei)));
         Topo T = genTopo(P, rng);
         auto cat = genCatalog(P, rng);
         auto reqs = genRequests(P, rng);
         for (int a = 0; a < A_COUNT; a++) {
+          if (g_paired && a != A_HYBRID) continue;
           RunStats s = runSequence(static_cast<Algo>(a), P, T, cat, reqs);
           if (s.accepted) delay[a].push_back(s.delaySum / s.accepted);
           acc[a].push_back(static_cast<double>(s.accepted) / s.total);
@@ -363,8 +401,10 @@ int main(int argc, char** argv) {
           jain[a].push_back(s.jain);
           cvv[a].push_back(s.cv);
           if (s.accepted) { bwv[a].push_back(s.bwSum / s.accepted); cpuv[a].push_back(s.cpuSum / s.accepted); resv[a].push_back(s.resSum / s.accepted); }
-          if (a == A_LOA || a == A_HYBRID || a == A_ROA || a == A_HROA)
+          if (a == A_LOA || a == A_HYBRID || a == A_ROA || a == A_HROA) {
             prov[a].push_back(s.accepted ? static_cast<double>(s.proven) / s.accepted : 0);
+            lim[a].push_back(static_cast<double>(s.limited) / s.total);
+          }
         }
       }
       auto mean = [](const std::vector<double>& v) { double s = 0; for (double x : v) s += x; return v.empty() ? NAN : s / v.size(); };
@@ -392,12 +432,20 @@ int main(int argc, char** argv) {
            << ",\"accept\":" << num(mean(acc[a])) << ",\"ms\":" << num(mean(ms[a])) << ",\"jain\":" << num(mean(jain[a]))
            << ",\"cv\":" << num(mean(cvv[a])) << ",\"bw\":" << num(mean(bwv[a])) << ",\"cpu\":" << num(mean(cpuv[a]))
            << ",\"res\":" << num(mean(resv[a])) << ",\"resci\":" << num(ci95(resv[a])) << ",\"resMax\":" << num(normRes(a));
-        if (!prov[a].empty()) js << ",\"proven\":" << num(mean(prov[a]));
+        if (!prov[a].empty()) js << ",\"proven\":" << num(mean(prov[a])) << ",\"limited\":" << num(mean(lim[a]));
         js << "}";
         std::printf("  %s %.1f/%.3f (acc %.2f, %.0f ms)", ALGO_NAME[a], mean(delay[a]), mean(resv[a]), mean(acc[a]), mean(ms[a]));
+        if (!lim[a].empty()) std::printf(" [limit hit %.0f%%]", mean(lim[a]) * 100);
       }
       js << "}}";
-      std::printf("\n"); std::fflush(stdout);
+      std::printf("\n");
+      if (g_paired) {
+        const PairStats& q = g_pair;
+        const double b = q.both ? q.both : 1, n = q.reqs ? q.reqs : 1;
+        std::printf("  PAIRED x=%g requests %d | LOA found %d, full found %d, full finished %d | on %d both found: LOA %.2f, seeded %.2f, full %.2f ms | full better on %d, best gain %.1f%% | LOA missed %d | time LOA %.0f ms, full %.1f ms\n",
+                    x, q.reqs, q.loaFound, q.bestFound, q.complete, q.both, q.loaSum / b, q.hybSum / b, q.bestSum / b, q.better, q.maxGainPct, q.loaMissed, q.loaMs / n, q.fullMs / n);
+      }
+      std::fflush(stdout);
     }
     js << "]}";
     js.flush();

@@ -9,18 +9,19 @@
 #include <numeric>
 
 // ─── SCA (Algorithm 2) ────────────────────────────────────────
-// Placement-free delay is additive over levels, so the I-SFG with
-// the minimum total delay is the per-level minimum.
+// SCA's delay estimate (exec + replication + consolidation + average link
+// delay, paper 2 Eqs. 15-16) is additive over levels, so the I-SFG with the
+// minimum total is the per-level minimum.
 ScaResult runSCA(const Model& M) {
   ScaResult r;
   r.layouts = 1;
   r.placementFree = 0;
   for (int li = 0; li < M.L; li++) {
-    const auto& sc = M.structScore[li];
+    const auto& sc = M.scaScore[li];
     int best = 0;
     for (int i = 1; i < static_cast<int>(sc.size()); i++) if (sc[i] < sc[best] - EPS) best = i;
     r.pick.push_back(best);
-    r.placementFree += sc[best];
+    r.placementFree += M.structScore[li][best];
     r.layouts *= static_cast<double>(sc.size());
   }
   r.g = makeIsfg(M, r.pick);
@@ -51,6 +52,22 @@ VdaResult runVDA(const Model& M, const Isfg& g) {
     return true;
   };
 
+  // Own completion time of f on node k. Paper 2 also sums the delay of users already
+  // sharing the VNF; here processing delay does not change with sharing, so that sum is
+  // the same on every node and only f's own delay decides.
+  std::vector<double> comp(M.V.size(), 0);
+  auto rep = [&](std::size_t outs) { return outs > 1 ? (outs - 1) * M.trep : 0.0; };
+  auto delayOn = [&](int f, int k) {
+    double best = -INF;
+    for (int p : g.pred[f]) {
+      const double v = p < 0 ? rep(g.first.size()) + M.d[M.cfg.src][k]
+                             : comp[p] + rep(g.succ[p].size()) + M.d[hosts[p]][k];
+      best = std::max(best, v);
+    }
+    const std::size_t ins = g.pred[f].size();
+    return best + (ins > 1 ? (ins - 1) * M.tint : 0.0) + M.V[f].proc;
+  };
+
   for (int f : g.topo) {
     // Lines 6-8: sum of shortest distances from the predecessors' hosts (or the AP), ascending
     std::vector<double> score(M.n, 0);
@@ -60,18 +77,26 @@ VdaResult runVDA(const Model& M, const Isfg& g) {
     std::iota(order.begin(), order.end(), 0);
     std::stable_sort(order.begin(), order.end(), [&](int a, int b) { return score[a] < score[b] - EPS; });
 
-    // Lines 9-21: walk the sorted nodes. A node whose existing instance of this
-    // type still has room is shared (lines 10-15); otherwise the first node with
-    // capacity for a new instance ends the search (lines 16-21). Nodes are in
-    // ascending delay order, so the first acceptable one has the lowest delay.
+    // Lines 9-23: walk the sorted nodes keeping the lowest delay. A node that runs this
+    // type and has room is a candidate (lines 10-15). A node that runs it without room is
+    // skipped: at most one instance per type on a node (paper 2, Definition 2). The first
+    // node without this type that has capacity is the last candidate (lines 16-21).
     int node = -1; bool shares = false;
+    double bestDelay = INF;
     for (int k : order) {
       if (score[k] == INF) continue;
       if (!reliableOn(f, k)) continue;
       auto it = room.find(std::make_pair(k, M.V[f].type));
-      if (it != room.end() && it->second >= M.cfg.qcpu - EPS) { node = k; shares = true; break; }
+      if (it != room.end()) {
+        if (it->second < M.cfg.qcpu - EPS) continue;
+        const double dl = delayOn(f, k);
+        if (dl < bestDelay - EPS) { bestDelay = dl; node = k; shares = true; }
+        continue;
+      }
       if (used[k] + M.V[f].dem > M.cfg.nodes[k].cap + EPS) continue;
-      node = k; break;
+      const double dl = delayOn(f, k);
+      if (dl < bestDelay - EPS) { bestDelay = dl; node = k; shares = false; }
+      break;
     }
     if (node < 0) {
       out.failReason = "no node can host " + M.V[f].name + " (capacity / reliability)";
@@ -79,6 +104,7 @@ VdaResult runVDA(const Model& M, const Isfg& g) {
       out.scheme.g = g;
       return out;
     }
+    comp[f] = bestDelay;
     hosts[f] = node; load[node]++;   // line 24
     auto key = std::make_pair(node, M.V[f].type);
     if (shares) room[key] -= M.cfg.qcpu;

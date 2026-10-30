@@ -19,7 +19,7 @@ ifeq ($(USE_GMP),1)
   LIBS     += -lgmpxx -lgmp
 endif
 
-EXP_SRC  := src/common/json.cpp src/common/model.cpp src/paper2/sca_vda.cpp src/paper1/loa.cpp src/app/experiments.cpp
+EXP_SRC  := src/common/json.cpp src/common/model.cpp src/paper2/sca_vda.cpp src/paper1/loa.cpp src/hybrid/full.cpp src/app/experiments.cpp
 ifeq ($(OS),Windows_NT)
   EXP := bin/loa_experiments.exe
 else
