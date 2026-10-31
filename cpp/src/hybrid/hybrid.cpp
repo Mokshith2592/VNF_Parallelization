@@ -14,6 +14,7 @@
 #include "paper2/sca_vda.hpp"
 #include "paper1/loa.hpp"
 #include "hybrid/full.hpp"
+#include "hybrid/sync.hpp"
 #include <algorithm>
 #include <cmath>
 
@@ -342,6 +343,15 @@ json::Value runHybrid(const json::Value& input) {
     certSummary += " / ROA " + certR.get("label").str();
   }
   phases.push(phase("certify", "Certify", "cpp/src/hybrid/hybrid.cpp", "certify", msSince(t), certSummary));
+
+  // ── Merge synchronisation of the final scheme ───────────────
+  if (cfg.sync && final.ok) {
+    t = nowMs();
+    const SyncResult y = syncMerges(M, final);
+    rep.set("sync", syncJson(M, y));
+    phases.push(phase("sync", "Synchronise merges", "cpp/src/hybrid/sync.cpp", "syncMerges(M, final)", msSince(t),
+      "largest skew " + fmt(y.maxSkewBefore) + " -> " + fmt(y.maxSkewAfter) + " ms, latency " + fmt(y.latBefore) + " -> " + fmt(y.latAfter) + " ms"));
+  }
 
   // ── Seed effect (what Solution A saved) ─────────────────────
   if (haveSeeded && havePlain) rep.set("seedEffect", seedEffect(plain, seeded));

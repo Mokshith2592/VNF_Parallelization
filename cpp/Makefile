@@ -4,7 +4,7 @@
 
 CXX      ?= g++
 CXXFLAGS := -std=c++14 -O2 -Wall -Wextra -Iinclude
-SRC      := src/common/json.cpp src/common/model.cpp src/paper2/sca_vda.cpp src/paper1/loa.cpp src/hybrid/full.cpp src/hybrid/bench.cpp src/app/summary.cpp src/hybrid/hybrid.cpp src/app/server.cpp src/app/main.cpp
+SRC      := src/common/json.cpp src/common/model.cpp src/paper2/sca_vda.cpp src/paper1/loa.cpp src/hybrid/full.cpp src/hybrid/sync.cpp src/hybrid/bench.cpp src/app/summary.cpp src/hybrid/hybrid.cpp src/app/server.cpp src/app/main.cpp
 LIBS     :=
 
 ifeq ($(OS),Windows_NT)
@@ -19,7 +19,7 @@ ifeq ($(USE_GMP),1)
   LIBS     += -lgmpxx -lgmp
 endif
 
-EXP_SRC  := src/common/json.cpp src/common/model.cpp src/paper2/sca_vda.cpp src/paper1/loa.cpp src/hybrid/full.cpp src/app/experiments.cpp
+EXP_SRC  := src/common/json.cpp src/common/model.cpp src/paper2/sca_vda.cpp src/paper1/loa.cpp src/hybrid/full.cpp src/hybrid/sync.cpp src/app/experiments.cpp
 ifeq ($(OS),Windows_NT)
   EXP := bin/loa_experiments.exe
 else

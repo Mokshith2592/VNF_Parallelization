@@ -6,6 +6,7 @@
 #include "paper2/sca_vda.hpp"
 #include "paper1/loa.hpp"
 #include "hybrid/full.hpp"
+#include "hybrid/sync.hpp"
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
@@ -211,6 +212,22 @@ int runSelfTest(int instances) {
       double sum = 0;
       for (int li = 0; li < M.L; li++) sum += M.structScore[li][B.best.g.pick[li]];
       if (std::fabs(placementFreeTails(M, B.best.g).head - sum) > 1e-6) fail(tag + ": placement-free head differs from the level scores");
+      // Merge synchronisation: latency and skew never rise, limits and capacity hold
+      const SyncResult y = syncMerges(M, B.best);
+      if (y.latAfter > y.latBefore + 1e-6) fail(tag + ": sync raised the latency");
+      if (std::fabs(y.latBefore - B.best.lat) > 1e-6) fail(tag + ": sync timing differs from evalScheme");
+      if (y.maxSkewAfter > y.maxSkewBefore + 1e-6) fail(tag + ": sync raised the skew");
+      if (y.maxBufAfter > y.maxBufBefore + 1e-6) fail(tag + ": sync raised the buffer");
+      std::vector<double> cpu(M.n, 0);
+      for (std::size_t f = 0; f < M.V.size(); f++) {
+        if (y.speed[f] < c.sMin - 1e-9 || y.speed[f] > c.sMax + 1e-9) fail(tag + ": sync speed out of range");
+        if (y.shared[f] && y.speed[f] != 1.0) fail(tag + ": sync changed a shared instance");
+        if (!y.shared[f]) cpu[B.best.hosts[f]] += M.V[f].dem * y.speed[f];
+      }
+      std::vector<double> before(M.n, 0);
+      for (std::size_t f = 0; f < M.V.size(); f++) if (!y.shared[f]) before[B.best.hosts[f]] += M.V[f].dem;
+      for (int h = 0; h < M.n; h++)
+        if (cpu[h] > before[h] + 1e-6 && cpu[h] > c.nodes[h].cap + 1e-6) fail(tag + ": sync exceeded a node's capacity");
     }
   }
   std::printf("\n%d instances checked against brute force, %d skipped (too large / disconnected)\n", ran, skipped);

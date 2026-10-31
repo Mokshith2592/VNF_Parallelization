@@ -90,6 +90,10 @@ Config parseConfig(const json::Value& v) {
   c.order    = v.boolOr("order", true);
   c.compare  = v.boolOr("compare", true);
   c.roa      = v.boolOr("roa", true);
+  c.sync     = v.boolOr("sync", true);
+  c.sMin     = v.numOr("sMin", 0.5);
+  c.sMax     = v.numOr("sMax", 1.5);
+  c.bufMax   = v.numOr("bufMax", 0);
   c.breq     = v.numOr("breq", 0);
   c.wBw      = v.numOr("wBw", 0.5);
   return c;
@@ -115,6 +119,9 @@ std::string validateConfig(const Config& c) {
   if (!(c.pkt > 0)) return "The data size l_u must be positive.";
   if (c.kmax < 1 || c.candCap < 1) return "kmax and candCap must be positive.";
   if (c.fullMs < 0) return "The full-search time budget cannot be negative.";
+  if (!(c.sMin > 0) || c.sMin > 1) return "The lowest CPU speed must be above 0 and at most 1.";
+  if (c.sMax < 1 || c.sMax > 4) return "The highest CPU speed must be between 1 and 4.";
+  if (c.bufMax < 0) return "The buffer limit cannot be negative.";
   if (c.wBw < 0 || c.wBw > 1) return "The bandwidth weight must be between 0 and 1.";
   if (c.rmin < 0 || c.rmin > 1) return "R_min must be between 0 and 1.";
   if (c.breq < 0 || c.qcpu < 0 || c.instCap < 0) return "Bandwidth, instance load and instance capacity cannot be negative.";

@@ -5,7 +5,8 @@ You enter a MEC network and a service chain on the website. The C++ engine:
 1. runs **paper 2** (Tian et al., TWC 2023): SCA picks an I-SFG, VDA places it greedily;
 2. runs the **full-combination search**: every I-SFG × every placement, with the packet dividing and merging costs. It starts from the VDA scheme and returns a proven optimum when it finishes;
 3. runs **paper 1** (Xie et al., ToN 2026), LOA (Algorithms 2 + 3, lowest latency) and ROA (Algorithms 4 + 5, least resources), seeded with VDA, as the fallback when the search ran out of time. With `compare` on they also run for the comparison table, which does not change the answer;
-4. certifies the result and sends everything back to the page.
+4. certifies the result;
+5. synchronises the merges of the final scheme (section 10) and sends everything back to the page.
 
 **All logic is in C++.** The browser only renders what the engine returns: `/api/run` (the report), `/api/check` (validation and search-space size while you edit), `/api/summary` (paper comparison), and `data/feasibility.json`, which the engine writes.
 
@@ -15,7 +16,7 @@ You enter a MEC network and a service chain on the website. The C++ engine:
 |---|---|---|
 | `paper1/` | `loa.cpp` | Paper 1: DPG, k shortest paths, anchor search. LOA (Alg. 2 + 3) and ROA (Alg. 4 + 5) |
 | `paper2/` | `sca_vda.cpp` | Paper 2: SCA (Alg. 2, pick the I-SFG) and VDA (Alg. 3, greedy placement) |
-| `hybrid/` | `hybrid.cpp`, `full.cpp`, `bench.cpp` | Our part: the pipeline, full-combination search, LOA/ROA fallback, certificate, self-test and feasibility benchmark |
+| `hybrid/` | `hybrid.cpp`, `full.cpp`, `sync.cpp`, `bench.cpp` | Our part: the pipeline, full-combination search, LOA/ROA fallback, certificate, self-test and feasibility benchmark |
 | `common/` | `model.cpp`, `json.cpp`, `bigcount.hpp` | Shared by all three: network, levels, I-SFG structures, the delay/resource model (incl. dividing and merging), JSON |
 | `app/` | `main.cpp`, `server.cpp`, `summary.cpp`, `experiments.cpp` | Entry points: CLI, HTTP server, paper-comparison summary, `loa_experiments.exe` |
 
@@ -252,3 +253,19 @@ web/         index.html, feasibility.html, results.html, js/ (render only), data
 - **SCA.** It enumerates every I-SFG of a level and takes the lowest placement-free delay. That's a superset of paper 2's incremental construction, and it ignores the average link delay T̂ of Eq. 15.
 - **The ILP (paper 2, Algorithm 1).** It's replaced by the full search, which is exact when it finishes.
 - **Instance reuse, normalisers, reliability, ROA tie-break.** These are as before (HANDOVER §2).
+
+---
+
+## 10. Merge synchronisation (`sync.hpp`, `sync.cpp`)
+
+Parallel branches can reach a merge at different times. The early packets wait in the merge node's buffer, and a large gap can overflow it. This is our own extension; neither paper models the buffer.
+
+After the final scheme is chosen, `syncMerges()` shifts CPU between its VNFs. Hosts and the I-SFG do not change.
+
+- **Model.** A VNF at speed s takes `proc / s` and uses `dem · s` CPU, for s in [`sMin`, `sMax`]. This is paper 1's Eq. 5 with no fixed overhead. VNFs on a shared instance keep s = 1.
+- **Skew** at a merge = last arrival − first arrival. **Buffer** at a merge = b_u · (sum of each branch's wait), in kbit (Mbps · ms). `bufMax` is the limit per merge; 0 means none.
+- **Slow down:** latest VNFs first, each VNF uses its spare time (the smallest wait of its outputs), so nothing after it is delayed.
+- **Speed up:** the late chain, upstream of a merge that is still skewed, in steps of 0.05, using free node capacity. A step that widens the worst skew or the worst buffer is undone, because a VNF can feed two merges.
+- **Guarantees, checked by `--selftest`:** latency, skew and buffer never rise; speeds stay in range; shared instances stay at 1; no node exceeds its capacity.
+
+`bufMax` only reports overflow; it does not reject a scheme. The certificate refers to the scheme at speed 1, so the latency after synchronisation can be below the certified optimum: it is a different model, with CPU as an extra resource.

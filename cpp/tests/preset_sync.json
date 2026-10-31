@@ -1,0 +1,25 @@
+{
+ "nodes": [
+  { "name": "A", "cap": 100, "x": 90, "y": 170, "fault": 0, "inst": "" },
+  { "name": "B", "cap": 40, "x": 270, "y": 70, "fault": 0, "inst": "" },
+  { "name": "C", "cap": 40, "x": 270, "y": 270, "fault": 0, "inst": "" },
+  { "name": "D", "cap": 100, "x": 450, "y": 170, "fault": 0, "inst": "" }
+ ],
+ "links": [
+  { "a": 0, "b": 1, "delay": 2, "bw": 300 },
+  { "a": 0, "b": 2, "delay": 2, "bw": 300 },
+  { "a": 1, "b": 3, "delay": 2, "bw": 300 },
+  { "a": 2, "b": 3, "delay": 2, "bw": 300 }
+ ],
+ "src": 0,
+ "dst": 3,
+ "vnfs": [
+  { "name": "fast", "level": 1, "proc": 5, "dem": 25, "fault": 0 },
+  { "name": "slow", "level": 1, "proc": 15, "dem": 25, "fault": 0 },
+  { "name": "merge", "level": 2, "proc": 1, "dem": 60, "fault": 0 }
+ ],
+ "trep": 0, "tint": 0, "tmax": 1000, "kmax": 256, "rmin": 0, "alpha": 0, "candCap": 2000,
+ "seed": true, "order": true, "compare": true, "breq": 50, "qcpu": 20, "instCap": 100,
+ "wBw": 0.5, "roa": false, "pkt": 1, "isfg": "all", "full": true, "fullMs": 2000,
+ "sync": true, "sMin": 0.5, "sMax": 1.5, "bufMax": 200
+}

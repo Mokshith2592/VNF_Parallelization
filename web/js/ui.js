@@ -142,7 +142,10 @@ function renderForms() {
     param('Request bandwidth b<sub>u</sub> (Mbps)', 'breq', 10) +
     param('Load on a shared instance q<sub>u</sub>', 'qcpu', 5) +
     param('Instance capacity C<sub>n</sub><sup>max</sup>', 'instCap', 10) +
-    param('Bandwidth weight α (β = 1 − α)', 'wBw', 0.1, 0, 'max="1"');
+    param('Bandwidth weight α (β = 1 − α)', 'wBw', 0.1, 0, 'max="1"') +
+    param('Lowest CPU speed (1 = demand c<sub>n</sub>)', 'sMin', 0.05, 0.05, 'max="1"') +
+    param('Highest CPU speed', 'sMax', 0.05, 1, 'max="4"') +
+    param('Buffer limit per merge (kbit, 0 = none)', 'bufMax', 100);
   $('#limParams').innerHTML =
     param('k limit (kmax)', 'kmax', 256, 1) +
     param('Candidates / anchor', 'candCap', 5000, 1) +
@@ -152,7 +155,8 @@ function renderForms() {
     toggle('seed',    'Seed LOA with VDA (Solution A)') +
     toggle('order',   'Try SCA-ranked arrangements first (Solution E)') +
     toggle('compare', 'Also run unseeded LOA / ROA for comparison') +
-    toggle('roa',     'Run ROA too (paper 1, Algorithms 4 + 5)');
+    toggle('roa',     'Run ROA too (paper 1, Algorithms 4 + 5)') +
+    toggle('sync',    'Synchronise merges: shift CPU so parallel branches arrive together');
 
   refreshSetup();
 }

@@ -20,7 +20,7 @@ set EXPS=%2 %3 %4 %5 %6 %7 %8 %9
 if "%2"=="" set EXPS=capacity bandwidth requests netsize sfclen parallel heavytail weights
 if "%KMAX%"=="" set KMAX=1024
 if "%CAND%"=="" set CAND=200
-g++ -std=c++14 -O2 -Wall -Iinclude src\common\json.cpp src\common\model.cpp src\paper2\sca_vda.cpp src\paper1\loa.cpp src\hybrid\full.cpp src\app\experiments.cpp -o bin\loa_experiments.exe -static-libgcc -static-libstdc++
+g++ -std=c++14 -O2 -Wall -Iinclude src\common\json.cpp src\common\model.cpp src\paper2\sca_vda.cpp src\paper1\loa.cpp src\hybrid\full.cpp src\hybrid\sync.cpp src\app\experiments.cpp -o bin\loa_experiments.exe -static-libgcc -static-libstdc++
 if errorlevel 1 (
   echo Build failed. Is D:\new_software\ucrt64\bin on PATH?
   exit /b 1

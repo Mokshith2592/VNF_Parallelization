@@ -141,6 +141,12 @@
       <div id="full"></div>
     </section>
 
+    <!-- Merge synchronisation -->
+    <section class="panel mt" id="syncPanel">
+      <h2>Merge synchronisation <small>early packets wait in the merge node's buffer (sync.cpp)</small></h2>
+      <div id="sync"></div>
+    </section>
+
     <!-- Comparison -->
     <section class="panel mt">
       <h2>Paper 1 vs paper 2 vs full search <small>latency from evalScheme(), resources from resourceCost()</small></h2>
@@ -190,6 +196,9 @@
         <i>Optimal</i> when the full search finished;
         <i>Optimal (proven)</i> when it hit its time budget but LOA stopped on its own bound (latency only);
         <i>Bounded</i> otherwise: the best scheme found, with paper 2's Theorem 1 bound.</li>
+      <li><b>6. Synchronise merges</b> (<code>sync.cpp</code>): after the answer is chosen, early branches get
+        less CPU and late ones more, so packets reach each merge closer together and need less buffer.
+        Latency never rises.</li>
     </ul>
   </details>
 

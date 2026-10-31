@@ -336,6 +336,31 @@ function renderVis() {
 }
 
 
+// ─── Merge synchronisation (syncJson() in sync.cpp) ───────────
+
+function syncHTML() {
+  const Y = REPORT.sync;
+  if (!Y.merges.length) return `<p class="hint">This scheme has no merge, so nothing waits in a buffer.</p>`;
+  const cell = (l, v) => `<div class="c"><span>${l}</span><b>${v}</b></div>`;
+  const pair = (a, b, u) => `${fmt(a)} → ${fmt(b)}${u}`;
+  let h = `<div class="cand">` +
+    cell('Largest skew', pair(Y.maxSkewBefore, Y.maxSkewAfter, ' ms')) +
+    cell('Largest buffer', pair(Y.maxBufBefore, Y.maxBufAfter, ' kbit')) +
+    cell('Latency', pair(Y.latBefore, Y.latAfter, ' ms')) +
+    cell('CPU of new instances', pair(Y.cpuBefore, Y.cpuAfter, '')) +
+    (Y.bufMax > 0 ? cell(`Merges over ${fmt(Y.bufMax)} kbit`, pair(Y.overflowBefore, Y.overflowAfter, '')) : '') +
+    `</div>`;
+  h += `<table class="pt"><thead><tr><th>Merge</th><th>Node</th><th>Branches</th><th>Skew (ms)</th><th>Buffer (kbit)</th></tr></thead><tbody>` +
+    Y.merges.map((m) => `<tr><td>${esc(m.at)}</td><td>${esc(m.node)}</td><td class="pc">${m.branches}</td>` +
+      `<td class="pc">${pair(m.skewBefore, m.skewAfter, '')}</td><td class="pc">${pair(m.bufBefore, m.bufAfter, '')}</td></tr>`).join('') +
+    `</tbody></table>`;
+  h += `<table class="pt"><thead><tr><th>VNF</th><th>CPU speed</th><th>Processing (ms)</th><th>Note</th></tr></thead><tbody>` +
+    Y.vnfs.map((v) => `<tr><td>${esc(v.name)}</td><td class="pc">${v.speed.toFixed(2)}</td>` +
+      `<td class="pc">${pair(v.procBefore, v.procAfter, '')}</td><td>${v.shared ? 'shared instance, speed fixed' : ''}</td></tr>`).join('') +
+    `</tbody></table>`;
+  return h;
+}
+
 // ─── Whole result view ────────────────────────────────────────
 
 const stat = (l, v, cls = '') => `<div class="stat ${cls}"><span>${l}</span><b>${v}</b></div>`;
@@ -364,6 +389,8 @@ function renderResult() {
   }
   $('#flow').innerHTML = flowHTML();
   $('#full').innerHTML = fullHTML();
+  $('#syncPanel').hidden = !(R.sync && R.sync.ok);
+  if (R.sync && R.sync.ok) $('#sync').innerHTML = syncHTML();
   $('#cmp').innerHTML  = cmpHTML();
   $('#seedFx').innerHTML = seedHTML();
   $('#raw').textContent = JSON.stringify(R, null, 2);

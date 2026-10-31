@@ -67,6 +67,12 @@ struct Config {
   bool   order    = true;   // Solution E: try SCA-ranked arrangements first
   bool   compare  = true;   // also run plain (unseeded) LOA for comparison
   bool   roa      = true;   // also run ROA (paper 1, Algorithms 4 + 5)
+
+  // Merge synchronisation (hybrid/sync.hpp)
+  bool   sync     = true;   // shift CPU between branches of the final scheme
+  double sMin     = 0.5;    // lowest and highest CPU speed of a VNF (1 = its demand c_n)
+  double sMax     = 1.5;
+  double bufMax   = 0;      // buffer limit per merge (kbit), 0 = no limit
 };
 
 Config parseConfig(const json::Value& v);

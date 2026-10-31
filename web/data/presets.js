@@ -162,7 +162,11 @@ const PRESETS = [
       "pkt": 1,
       "isfg": "all",
       "full": true,
-      "fullMs": 20000
+      "fullMs": 20000,
+      "sync": true,
+      "sMin": 0.5,
+      "sMax": 1.5,
+      "bufMax": 0
     }
   },
   {
@@ -317,7 +321,11 @@ const PRESETS = [
       "pkt": 1,
       "isfg": "all",
       "full": true,
-      "fullMs": 20000
+      "fullMs": 20000,
+      "sync": true,
+      "sMin": 0.5,
+      "sMax": 1.5,
+      "bufMax": 0
     }
   },
   {
@@ -479,7 +487,11 @@ const PRESETS = [
       "pkt": 1,
       "isfg": "all",
       "full": true,
-      "fullMs": 20000
+      "fullMs": 20000,
+      "sync": true,
+      "sMin": 0.5,
+      "sMax": 1.5,
+      "bufMax": 0
     }
   },
   {
@@ -634,7 +646,11 @@ const PRESETS = [
       "pkt": 1,
       "isfg": "all",
       "full": true,
-      "fullMs": 20000
+      "fullMs": 20000,
+      "sync": true,
+      "sMin": 0.5,
+      "sMax": 1.5,
+      "bufMax": 0
     }
   },
   {
@@ -789,7 +805,11 @@ const PRESETS = [
       "pkt": 1,
       "isfg": "all",
       "full": true,
-      "fullMs": 20000
+      "fullMs": 20000,
+      "sync": true,
+      "sMin": 0.5,
+      "sMax": 1.5,
+      "bufMax": 0
     }
   },
   {
@@ -1018,7 +1038,11 @@ const PRESETS = [
       "pkt": 1,
       "isfg": "all",
       "full": true,
-      "fullMs": 20000
+      "fullMs": 20000,
+      "sync": true,
+      "sMin": 0.5,
+      "sMax": 1.5,
+      "bufMax": 0
     }
   }
 ];

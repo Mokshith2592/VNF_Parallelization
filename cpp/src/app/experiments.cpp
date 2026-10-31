@@ -24,6 +24,7 @@
 #include "paper2/sca_vda.hpp"
 #include "paper1/loa.hpp"
 #include "hybrid/full.hpp"
+#include "hybrid/sync.hpp"
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
@@ -50,6 +51,8 @@ struct PairStats {
   int reqs = 0, loaFound = 0, bestFound = 0, complete = 0, both = 0, better = 0, worse = 0;
   int loaMissed = 0, hybMissed = 0, fallbacks = 0, fallbackHelped = 0;
   double loaSum = 0, bestSum = 0, maxGainPct = 0, loaMs = 0, pipeMs = 0, pipeMaxMs = 0;
+  int syncN = 0;                                // requests whose scheme has a skewed merge
+  double skewB = 0, skewA = 0, bufB = 0, bufA = 0, latB = 0, latA = 0, cpuB = 0, cpuA = 0;
 } g_pair;
 bool g_allIsfg = true;   // --staged: only stage sequences inside a level (the earlier model)
 
@@ -242,7 +245,17 @@ RunStats runSequence(Algo algo, const Params& P, const Topo& T0, const std::vect
             g_pair.maxGainPct = std::max(g_pair.maxGainPct, (plain.best.lat - best.lat) / plain.best.lat * 100);
           } else if (best.lat > plain.best.lat + 1e-6) g_pair.worse++;
         }
-        if (best.ok) s = best;
+        if (best.ok) {
+          s = best;
+          const SyncResult y = syncMerges(M, best);
+          if (y.maxSkewBefore > 1e-6) {
+            g_pair.syncN++;
+            g_pair.skewB += y.maxSkewBefore; g_pair.skewA += y.maxSkewAfter;
+            g_pair.bufB += y.maxBufBefore;   g_pair.bufA += y.maxBufAfter;
+            g_pair.latB += y.latBefore;      g_pair.latA += y.latAfter;
+            g_pair.cpuB += y.cpuBefore;      g_pair.cpuA += y.cpuAfter;
+          }
+        }
       }
       if (g_verbose) std::printf("    [%s] L=%d rounds=%d k=%ld paths=%ld anchors=%ld cand=%.0f removed=%ld stop=%s lat=%.1f ms=%.0f\n", ALGO_NAME[algo], M.L, r.st.rounds, r.st.finalK, r.st.pathsGenerated, r.st.anchors, r.st.candidates, r.st.stabilityRemoved, stopName(r.stop), s.lat, r.st.ms);
       if (r.stop != Stop::KLimit && !r.st.capped && r.st.stabilityRemoved == 0) st.proven++;
@@ -456,6 +469,9 @@ int main(int argc, char** argv) {
         const double b = q.both ? q.both : 1, n = q.reqs ? q.reqs : 1;
         std::printf("  PAIRED x=%g requests %d | LOA found %d, hybrid found %d, search finished %d | on %d both found: LOA %.2f, hybrid %.2f ms | better %d, worse %d, best gain %.1f%% | LOA missed %d, hybrid missed %d | fallback used %d, helped %d | time LOA %.0f ms, hybrid mean %.1f ms, max %.0f ms\n",
                     x, q.reqs, q.loaFound, q.bestFound, q.complete, q.both, q.loaSum / b, q.bestSum / b, q.better, q.worse, q.maxGainPct, q.loaMissed, q.hybMissed, q.fallbacks, q.fallbackHelped, q.loaMs / n, q.pipeMs / n, q.pipeMaxMs);
+        const double y = q.syncN ? q.syncN : 1;
+        std::printf("  SYNC x=%g skewed requests %d | skew %.2f -> %.2f ms | buffer %.1f -> %.1f kbit | latency %.2f -> %.2f ms | cpu %.1f -> %.1f\n",
+                    x, q.syncN, q.skewB / y, q.skewA / y, q.bufB / y, q.bufA / y, q.latB / y, q.latA / y, q.cpuB / y, q.cpuA / y);
       }
       std::fflush(stdout);
     }
