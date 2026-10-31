@@ -178,13 +178,14 @@
         every I-SFG of each level (series-parallel: e.g. (f2 → f3) ∥ f4, paper 2 Fig. 1), and the
         number of DPG paths. Latency = longest branch of link delay + μ·l<sub>u</sub> +
         (out − 1)·τ<sub>rep</sub>·l<sub>u</sub> (dividing) + (in − 1)·τ<sub>int</sub>·l<sub>u</sub> (merging).</li>
-      <li><b>2. Seed</b> (<code>sca_vda.cpp</code>): SCA picks the I-SFG with the lowest
-        placement-free delay; VDA places VNFs greedily near their predecessors.</li>
-      <li><b>3. LOA / ROA</b> (<code>loa.cpp</code>, paper 1): k cheapest DPG paths → feasibility →
-        stability filter → coverage → anchors → prune when the next path is costlier than the best.
-        The anchor's VNFs keep their hosts, so only part of the space is looked at.</li>
-      <li><b>4. Full search</b> (<code>full.cpp</code>): every I-SFG (in order of its placement-free
-        delay) × every placement, branch and bound, starting from the best of steps 2 and 3.</li>
+      <li><b>2. Seed</b> (<code>sca_vda.cpp</code>): SCA picks the I-SFG with the lowest estimated
+        delay, using the average link delay; VDA places VNFs greedily near their predecessors.</li>
+      <li><b>3. Full search</b> (<code>full.cpp</code>): every I-SFG (in order of its placement-free
+        delay) × every placement, branch and bound, starting from the seed.</li>
+      <li><b>4. LOA / ROA</b> (<code>loa.cpp</code>, paper 1): the fallback when the full search ran out
+        of time. k cheapest DPG paths → feasibility → stability filter → coverage → anchors → prune when
+        the next path is costlier than the best. They also run for the comparison table, which does not
+        change the answer.</li>
       <li><b>5. Certify</b> (<code>hybrid.cpp</code>):
         <i>Optimal</i> when the full search finished;
         <i>Optimal (proven)</i> when it hit its time budget but LOA stopped on its own bound (latency only);

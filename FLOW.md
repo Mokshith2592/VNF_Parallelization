@@ -3,8 +3,8 @@
 You enter a MEC network and a service chain on the website. The C++ engine:
 
 1. runs **paper 2** (Tian et al., TWC 2023): SCA picks an I-SFG, VDA places it greedily;
-2. runs **paper 1** (Xie et al., ToN 2026): LOA (Algorithms 2 + 3, lowest latency) and ROA (Algorithms 4 + 5, least resources), seeded with VDA;
-3. runs the **full-combination search**: every I-SFG × every placement, with the packet dividing and merging costs. It starts from the best scheme of steps 1–2 and returns a proven optimum when it finishes;
+2. runs the **full-combination search**: every I-SFG × every placement, with the packet dividing and merging costs. It starts from the VDA scheme and returns a proven optimum when it finishes;
+3. runs **paper 1** (Xie et al., ToN 2026), LOA (Algorithms 2 + 3, lowest latency) and ROA (Algorithms 4 + 5, least resources), seeded with VDA, as the fallback when the search ran out of time. With `compare` on they also run for the comparison table, which does not change the answer;
 4. certifies the result and sends everything back to the page.
 
 **All logic is in C++.** The browser only renders what the engine returns: `/api/run` (the report), `/api/check` (validation and search-space size while you edit), `/api/summary` (paper comparison), and `data/feasibility.json`, which the engine writes.
@@ -15,7 +15,7 @@ You enter a MEC network and a service chain on the website. The C++ engine:
 |---|---|---|
 | `paper1/` | `loa.cpp` | Paper 1: DPG, k shortest paths, anchor search. LOA (Alg. 2 + 3) and ROA (Alg. 4 + 5) |
 | `paper2/` | `sca_vda.cpp` | Paper 2: SCA (Alg. 2, pick the I-SFG) and VDA (Alg. 3, greedy placement) |
-| `hybrid/` | `hybrid.cpp`, `full.cpp`, `bench.cpp` | Our part: VDA-seeded LOA/ROA, full-combination search, certificate, self-test and feasibility benchmark |
+| `hybrid/` | `hybrid.cpp`, `full.cpp`, `bench.cpp` | Our part: the pipeline, full-combination search, LOA/ROA fallback, certificate, self-test and feasibility benchmark |
 | `common/` | `model.cpp`, `json.cpp`, `bigcount.hpp` | Shared by all three: network, levels, I-SFG structures, the delay/resource model (incl. dividing and merging), JSON |
 | `app/` | `main.cpp`, `server.cpp`, `summary.cpp`, `experiments.cpp` | Entry points: CLI, HTTP server, paper-comparison summary, `loa_experiments.exe` |
 
@@ -93,9 +93,10 @@ The ingress counts as a VNF with out = |first VNFs|, and the egress as one with 
                                       1 common/model.cpp    buildModel            levels, I-SFG structures, shortest paths
                                       2 paper2/sca_vda.cpp  runSCA, runVDA,       seed (paper 2)
                                                             runVDAAllLayouts
-                                      3 paper1/loa.cpp      runLOA ×2, runROA ×2  paper 1, seeded and plain
-                                      4 hybrid/full.cpp     runFull(Latency, best of 2+3)
-                                                            runFull(Resource, best of 2+3)
+                                      3 hybrid/full.cpp     runFull(Latency, seed)
+                                                            runFull(Resource, seed)
+                                      4 paper1/loa.cpp      runLOA, runROA        fallback if the search ran out
+                                                                                  of time; else only for `compare`
                                       5 hybrid/hybrid.cpp   certify, gapJson,     certificate, paper-1 gap,
                                                             cmpRow, seedEffect    comparison table rows
  render.js renderResult() ◄──────────  report JSON

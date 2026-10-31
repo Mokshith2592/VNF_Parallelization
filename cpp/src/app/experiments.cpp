@@ -38,7 +38,7 @@
 namespace {
 
 long g_cand = 20000, g_kmax = 4096;
-int g_reqOverride = 0;
+int g_reqOverride = 0, g_sfcOverride = 0;
 bool g_verbose = false;
 bool g_diag = false;
 
@@ -47,8 +47,9 @@ bool g_diag = false;
 bool g_paired = false;
 double g_fullMs = 2000;
 struct PairStats {
-  int reqs = 0, loaFound = 0, bestFound = 0, complete = 0, both = 0, better = 0, loaMissed = 0;
-  double loaSum = 0, hybSum = 0, bestSum = 0, maxGainPct = 0, loaMs = 0, fullMs = 0;
+  int reqs = 0, loaFound = 0, bestFound = 0, complete = 0, both = 0, better = 0, worse = 0;
+  int loaMissed = 0, hybMissed = 0, fallbacks = 0, fallbackHelped = 0;
+  double loaSum = 0, bestSum = 0, maxGainPct = 0, loaMs = 0, pipeMs = 0, pipeMaxMs = 0;
 } g_pair;
 bool g_allIsfg = true;   // --staged: only stage sequences inside a level (the earlier model)
 
@@ -213,26 +214,35 @@ RunStats runSequence(Algo algo, const Params& P, const Topo& T0, const std::vect
       LoaResult r = runLOA(M, algo == A_HYBRID && seed.ok ? &seed : nullptr);
       s = r.best;
       if (g_paired && algo == A_HYBRID) {
+        // Pipeline: VDA seed, full search, LOA (r, already seeded) only if the search ran out of time
         double t1 = nowMs();
         const LoaResult plain = runLOA(M, nullptr);
         g_pair.loaMs += nowMs() - t1;
         t1 = nowMs();
-        const FullResult fr = runFull(M, Objective::Latency, r.best.ok ? &r.best : nullptr);
-        g_pair.fullMs += nowMs() - t1;
+        const FullResult fr = runFull(M, Objective::Latency, seed.ok ? &seed : nullptr);
+        double pipeMs = nowMs() - t1;
+        Scheme best = fr.best;
+        if (!fr.complete) {
+          g_pair.fallbacks++;
+          pipeMs += r.st.ms;
+          if (r.best.ok && (!best.ok || r.best.lat < best.lat - 1e-6)) { best = r.best; g_pair.fallbackHelped++; }
+        }
+        g_pair.pipeMs += pipeMs; g_pair.pipeMaxMs = std::max(g_pair.pipeMaxMs, pipeMs);
         g_pair.reqs++;
         if (plain.best.ok) g_pair.loaFound++;
-        if (fr.best.ok) g_pair.bestFound++;
+        if (best.ok) g_pair.bestFound++;
         if (fr.complete) g_pair.complete++;
-        if (fr.best.ok && !plain.best.ok) g_pair.loaMissed++;
-        if (fr.best.ok && plain.best.ok) {
+        if (best.ok && !plain.best.ok) g_pair.loaMissed++;
+        if (plain.best.ok && !best.ok) g_pair.hybMissed++;
+        if (best.ok && plain.best.ok) {
           g_pair.both++;
-          g_pair.loaSum += plain.best.lat; g_pair.hybSum += r.best.lat; g_pair.bestSum += fr.best.lat;
-          if (fr.best.lat < plain.best.lat - 1e-6) {
+          g_pair.loaSum += plain.best.lat; g_pair.bestSum += best.lat;
+          if (best.lat < plain.best.lat - 1e-6) {
             g_pair.better++;
-            g_pair.maxGainPct = std::max(g_pair.maxGainPct, (plain.best.lat - fr.best.lat) / plain.best.lat * 100);
-          }
+            g_pair.maxGainPct = std::max(g_pair.maxGainPct, (plain.best.lat - best.lat) / plain.best.lat * 100);
+          } else if (best.lat > plain.best.lat + 1e-6) g_pair.worse++;
         }
-        if (fr.best.ok) s = fr.best;
+        if (best.ok) s = best;
       }
       if (g_verbose) std::printf("    [%s] L=%d rounds=%d k=%ld paths=%ld anchors=%ld cand=%.0f removed=%ld stop=%s lat=%.1f ms=%.0f\n", ALGO_NAME[algo], M.L, r.st.rounds, r.st.finalK, r.st.pathsGenerated, r.st.anchors, r.st.candidates, r.st.stabilityRemoved, stopName(r.stop), s.lat, r.st.ms);
       if (r.stop != Stop::KLimit && !r.st.capped && r.st.stabilityRemoved == 0) st.proven++;
@@ -356,6 +366,7 @@ int main(int argc, char** argv) {
     else if (a == "--verbose") g_verbose = true;
     else if (a == "--diag") g_diag = true;
     else if (a == "--paired") g_paired = true;
+    else if (a == "--sfc" && i + 1 < argc) g_sfcOverride = std::atoi(argv[++i]);
     else if (a == "--full-ms" && i + 1 < argc) g_fullMs = std::atof(argv[++i]);
     else if (a == "--reqs" && i + 1 < argc) g_reqOverride = std::atoi(argv[++i]);
     else if (a == "--staged") g_allIsfg = false;
@@ -384,6 +395,7 @@ int main(int argc, char** argv) {
       Params P; E.apply(P, x);
       g_pair = PairStats();
       if (g_reqOverride) P.requests = g_reqOverride;
+      if (g_sfcOverride) { P.sfcLen = g_sfcOverride; P.catalog = std::max(P.catalog, P.sfcLen); }
       // per algorithm, per run: average delay of that run
       std::vector<std::vector<double>> delay(A_COUNT), acc(A_COUNT), ms(A_COUNT), jain(A_COUNT), prov(A_COUNT),
                                        bwv(A_COUNT), cpuv(A_COUNT), cvv(A_COUNT), resv(A_COUNT), lim(A_COUNT);
@@ -442,8 +454,8 @@ int main(int argc, char** argv) {
       if (g_paired) {
         const PairStats& q = g_pair;
         const double b = q.both ? q.both : 1, n = q.reqs ? q.reqs : 1;
-        std::printf("  PAIRED x=%g requests %d | LOA found %d, full found %d, full finished %d | on %d both found: LOA %.2f, seeded %.2f, full %.2f ms | full better on %d, best gain %.1f%% | LOA missed %d | time LOA %.0f ms, full %.1f ms\n",
-                    x, q.reqs, q.loaFound, q.bestFound, q.complete, q.both, q.loaSum / b, q.hybSum / b, q.bestSum / b, q.better, q.maxGainPct, q.loaMissed, q.loaMs / n, q.fullMs / n);
+        std::printf("  PAIRED x=%g requests %d | LOA found %d, hybrid found %d, search finished %d | on %d both found: LOA %.2f, hybrid %.2f ms | better %d, worse %d, best gain %.1f%% | LOA missed %d, hybrid missed %d | fallback used %d, helped %d | time LOA %.0f ms, hybrid mean %.1f ms, max %.0f ms\n",
+                    x, q.reqs, q.loaFound, q.bestFound, q.complete, q.both, q.loaSum / b, q.bestSum / b, q.better, q.worse, q.maxGainPct, q.loaMissed, q.hybMissed, q.fallbacks, q.fallbackHelped, q.loaMs / n, q.pipeMs / n, q.pipeMaxMs);
       }
       std::fflush(stdout);
     }

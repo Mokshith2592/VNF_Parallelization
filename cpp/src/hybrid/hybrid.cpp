@@ -2,7 +2,9 @@
    LOA Hybrid — Orchestration and certification
      1 model        (model.cpp)
      2 seed         SCA + VDA, paper 2 (sca_vda.cpp)
-     3 LOA / ROA    paper 1, anchor-based search (loa.cpp)
+     3 full search  every I-SFG × every placement, from the seed (full.cpp)
+     4 LOA / ROA    paper 1 (loa.cpp): the fallback when the search ran out of
+                    time; with `compare` also run for the comparison table
      4 full search  every I-SFG × every placement, seeded with the
                     best of 2 and 3 (full.cpp)
      5 certify      optimal when the full search finished
@@ -245,68 +247,79 @@ json::Value runHybrid(const json::Value& input) {
       seed.ok ? "seed = " + fmt(seed.lat) + " ms from " + seed.source : "VDA found no feasible scheme; LOA starts from inf"));
   }
 
-  // ── 3. LOA search (paper 1, Alg. 2 + 3), seeded and plain ───
+  // ── 3. Full-combination search from the seed ────────────────
+  FullResult full, fullR;
+  Scheme final = seed;
+  if (cfg.full) {
+    full = runFull(M, Objective::Latency, seed.ok ? &seed : nullptr);
+    final = full.best;
+    rep.set("full", fullJson(M, full));
+    phases.push(phase("full", "Full-combination search, latency (every I-SFG × placement)", "cpp/src/hybrid/full.cpp", "runFull(M, Latency, &seed)", full.ms, fullSummary(full)));
+  }
+  Scheme finalR = seedR;
+  if (cfg.roa && cfg.full) {
+    fullR = runFull(M, Objective::Resource, seedR.ok ? &seedR : nullptr);
+    finalR = fullR.best;
+    rep.set("fullRes", fullJson(M, fullR));
+    phases.push(phase("fullRes", "Full-combination search, resources", "cpp/src/hybrid/full.cpp", "runFull(M, Resource, &seedRes)", fullR.ms, fullSummary(fullR)));
+  }
+  // The full search's answer is proven when it finished; only then is LOA / ROA unnecessary
+  const bool needLoa = !cfg.full || !full.complete;
+  const bool needRoa = cfg.roa && (!cfg.full || !fullR.complete);
+
+  // ── 4. LOA / ROA (paper 1): the fallback when the search ran out of time.
+  //       With `compare` they also run for the comparison table; that does not change the answer.
   LoaResult seeded, plain;
   bool haveSeeded = false, havePlain = false;
-  if (cfg.seed) {
+  const std::string loaRole = needLoa ? "fallback" : "for comparison";
+  if (cfg.seed && (needLoa || cfg.compare)) {
     seeded = runLOA(M, seed.ok ? &seed : nullptr);
     haveSeeded = true;
     rep.set("loaSeeded", loaJson(M, seeded));
-    phases.push(phase("loa", "LOA search, seeded (paper 1, Alg. 2 + 3)", "cpp/src/paper1/loa.cpp", "runLOA(M, &seed)", seeded.st.ms, summary(seeded)));
+    phases.push(phase("loa", "LOA search, seeded, " + loaRole + " (paper 1, Alg. 2 + 3)", "cpp/src/paper1/loa.cpp", "runLOA(M, &seed)", seeded.st.ms, summary(seeded)));
   }
-  if (cfg.compare || !cfg.seed) {
+  if (cfg.compare || (!cfg.seed && needLoa)) {
     plain = runLOA(M, nullptr);
     havePlain = true;
     rep.set("loaPlain", loaJson(M, plain));
-    phases.push(phase("loaPlain", "LOA search, unseeded (paper 1 alone)", "cpp/src/paper1/loa.cpp", "runLOA(M, nullptr)", plain.st.ms, summary(plain)));
+    phases.push(phase("loaPlain", "LOA search, unseeded, " + loaRole + " (paper 1 alone)", "cpp/src/paper1/loa.cpp", "runLOA(M, nullptr)", plain.st.ms, summary(plain)));
   }
-  const LoaResult& primary = haveSeeded ? seeded : plain;
+  const LoaResult* primary = haveSeeded ? &seeded : havePlain ? &plain : nullptr;
+  if (needLoa) {
+    if (haveSeeded) final = better(M, final, seeded.best, Objective::Latency);
+    if (havePlain)  final = better(M, final, plain.best, Objective::Latency);
+  }
 
-  // ── ROA search (paper 1, Alg. 4 + 5), seeded and plain ──────
   LoaResult roaS, roaP;
   bool haveRoaS = false, haveRoaP = false;
   if (cfg.roa) {
-    if (cfg.seed) {
+    const std::string roaRole = needRoa ? "fallback" : "for comparison";
+    if (cfg.seed && (needRoa || cfg.compare)) {
       roaS = runROA(M, seedR.ok ? &seedR : nullptr);
       haveRoaS = true;
       rep.set("roaSeeded", loaJson(M, roaS));
-      phases.push(phase("roa", "ROA search, seeded (paper 1, Alg. 4 + 5)", "cpp/src/paper1/loa.cpp", "runROA(M, &seedRes)", roaS.st.ms, summary(roaS)));
+      phases.push(phase("roa", "ROA search, seeded, " + roaRole + " (paper 1, Alg. 4 + 5)", "cpp/src/paper1/loa.cpp", "runROA(M, &seedRes)", roaS.st.ms, summary(roaS)));
     }
-    if (cfg.compare || !cfg.seed) {
+    if (cfg.compare || (!cfg.seed && needRoa)) {
       roaP = runROA(M, nullptr);
       haveRoaP = true;
       rep.set("roaPlain", loaJson(M, roaP));
-      phases.push(phase("roaPlain", "ROA search, unseeded (paper 1 alone)", "cpp/src/paper1/loa.cpp", "runROA(M, nullptr)", roaP.st.ms, summary(roaP)));
+      phases.push(phase("roaPlain", "ROA search, unseeded, " + roaRole + " (paper 1 alone)", "cpp/src/paper1/loa.cpp", "runROA(M, nullptr)", roaP.st.ms, summary(roaP)));
     }
   }
   const LoaResult* rp = haveRoaS ? &roaS : haveRoaP ? &roaP : nullptr;
-
-  // ── 4. Full-combination search, seeded with the best so far ─
-  Scheme final = better(M, primary.best, seed, Objective::Latency);
-  if (havePlain) final = better(M, final, plain.best, Objective::Latency);
-  FullResult full, fullR;
-  if (cfg.full) {
-    full = runFull(M, Objective::Latency, final.ok ? &final : nullptr);
-    final = full.best;
-    rep.set("full", fullJson(M, full));
-    phases.push(phase("full", "Full-combination search, latency (every I-SFG × placement)", "cpp/src/hybrid/full.cpp", "runFull(M, Latency, &best)", full.ms, fullSummary(full)));
-  }
-  Scheme finalR;
-  if (cfg.roa) {
-    finalR = seedR;
-    if (rp) finalR = better(M, finalR, rp->best, Objective::Resource);
+  if (needRoa) {
+    if (haveRoaS) finalR = better(M, finalR, roaS.best, Objective::Resource);
     if (haveRoaP) finalR = better(M, finalR, roaP.best, Objective::Resource);
-    if (cfg.full) {
-      fullR = runFull(M, Objective::Resource, finalR.ok ? &finalR : nullptr);
-      finalR = fullR.best;
-      rep.set("fullRes", fullJson(M, fullR));
-      phases.push(phase("fullRes", "Full-combination search, resources", "cpp/src/hybrid/full.cpp", "runFull(M, Resource, &best)", fullR.ms, fullSummary(fullR)));
-    }
   }
+  // Time the latency answer really needed: seed + search, plus LOA only when it was the fallback
+  double solveMs = seedMs + (cfg.full ? full.ms : 0);
+  if (needLoa) solveMs += (haveSeeded ? seeded.st.ms : 0) + (havePlain ? plain.st.ms : 0);
+  rep.set("solveMs", solveMs);
 
   // ── 5. Certify both objectives ──────────────────────────────
   t = nowMs();
-  json::Value cert = certify(M, &primary, cfg.full ? &full : nullptr, Objective::Latency, final);
+  json::Value cert = certify(M, primary, cfg.full ? &full : nullptr, Objective::Latency, final);
   cert.set("bound", theorem1(M, vda.scheme.ok ? vda.scheme : seed));
   const bool optimal = cert.get("label").str() == "OPTIMAL";
   json::Value gaps = json::Value::object();
@@ -363,13 +376,13 @@ json::Value runHybrid(const json::Value& input) {
   if (cfg.full) {
     rows.push(cmpRow(M, "Full search (latency)", "every I-SFG × every placement", &full.best, final,
                      (full.complete ? "Complete: " : "Time budget hit: ") + fmt(full.leaves) + " complete schemes of " + fmt(full.space) + " evaluated, the rest cut by bounds." +
-                     (full.improvedSeed ? " Improved on paper 1 / paper 2." : " Paper 1 / paper 2 already had the best."), full.ms, "inA"));
+                     (full.improvedSeed ? " Improved on the VDA seed." : " The VDA seed was already the best."), full.ms, "inA"));
     if (cfg.roa)
       rows.push(cmpRow(M, "Full search (resources)", "every I-SFG × every placement", &fullR.best, final,
                        (fullR.complete ? "Complete: " : "Time budget hit: ") + fmt(fullR.leaves) + " complete schemes evaluated." +
-                       (fullR.improvedSeed ? " Improved on ROA / VDA." : " ROA / VDA already had the cheapest."), fullR.ms, "inA"));
+                       (fullR.improvedSeed ? " Improved on the VDA seed." : " The VDA seed was already the cheapest."), fullR.ms, "inA"));
   }
-  rows.push(cmpRow(M, "Final: lowest latency", cert.get("label").str(), &final, final, final.source, totalMs, "anchor"));
+  rows.push(cmpRow(M, "Final: lowest latency", cert.get("label").str(), &final, final, final.source, solveMs, "anchor"));
   if (cfg.roa)
     rows.push(cmpRow(M, "Final: least resources", rep.get("certificateRes").get("label").str(), &finalR, final, finalR.source, -1, "anchor"));
   rep.set("comparison", rows);
