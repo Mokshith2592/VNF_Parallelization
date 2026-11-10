@@ -1,0 +1,144 @@
+{
+ "nodes": [
+  {
+   "name": "A",
+   "cap": 30,
+   "x": 300,
+   "y": 90,
+   "fault": 0,
+   "inst": ""
+  },
+  {
+   "name": "B",
+   "cap": 30,
+   "x": 500,
+   "y": 90,
+   "fault": 0,
+   "inst": ""
+  },
+  {
+   "name": "C",
+   "cap": 30,
+   "x": 110,
+   "y": 90,
+   "fault": 0,
+   "inst": ""
+  },
+  {
+   "name": "D",
+   "cap": 30,
+   "x": 210,
+   "y": 270,
+   "fault": 0,
+   "inst": ""
+  },
+  {
+   "name": "E",
+   "cap": 30,
+   "x": 500,
+   "y": 270,
+   "fault": 0,
+   "inst": ""
+  }
+ ],
+ "links": [
+  {
+   "a": 1,
+   "b": 0,
+   "delay": 8,
+   "bw": 300
+  },
+  {
+   "a": 2,
+   "b": 0,
+   "delay": 11,
+   "bw": 300
+  },
+  {
+   "a": 3,
+   "b": 0,
+   "delay": 11,
+   "bw": 300
+  },
+  {
+   "a": 4,
+   "b": 1,
+   "delay": 9,
+   "bw": 300
+  },
+  {
+   "a": 3,
+   "b": 4,
+   "delay": 9,
+   "bw": 300
+  },
+  {
+   "a": 3,
+   "b": 2,
+   "delay": 7,
+   "bw": 300
+  }
+ ],
+ "src": 3,
+ "dst": 1,
+ "vnfs": [
+  {
+   "name": "f1",
+   "level": 1,
+   "proc": 3,
+   "dem": 20,
+   "fault": 0
+  },
+  {
+   "name": "f2",
+   "level": 1,
+   "proc": 3,
+   "dem": 25,
+   "fault": 0
+  },
+  {
+   "name": "f3",
+   "level": 1,
+   "proc": 5,
+   "dem": 15,
+   "fault": 0
+  },
+  {
+   "name": "f4",
+   "level": 2,
+   "proc": 11,
+   "dem": 15,
+   "fault": 0
+  },
+  {
+   "name": "f5",
+   "level": 2,
+   "proc": 6,
+   "dem": 20,
+   "fault": 0
+  }
+ ],
+ "trep": 2,
+ "tint": 2,
+ "tmax": 1000,
+ "rmin": 0,
+ "alpha": 0,
+ "seed": true,
+ "order": true,
+ "compare": true,
+ "breq": 50,
+ "qcpu": 20,
+ "instCap": 100,
+ "wBw": 0.5,
+ "roa": true,
+ "pkt": 1,
+ "isfg": "all",
+ "full": true,
+ "fullMs": 20000,
+ "sync": true,
+ "kmax": 256,
+ "candCap": 200,
+ "sMin": 0.5,
+ "sMax": 1.5,
+ "bufMax": 0
+}

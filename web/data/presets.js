@@ -1044,5 +1044,403 @@ const PRESETS = [
       "sMax": 1.5,
       "bufMax": 0
     }
+  },
+  {
+    "label": "Preset P — packet sync",
+    "blurb": "Two parallel VNFs take 5 ms and 15 ms and merge on node D: the fast packet waits 10 ms and overflows a 200 kbit buffer. Shifting CPU makes both take 10 ms.",
+    "cfg": {
+      "nodes": [
+        {
+          "name": "A",
+          "cap": 100,
+          "x": 90,
+          "y": 170,
+          "fault": 0,
+          "inst": ""
+        },
+        {
+          "name": "B",
+          "cap": 40,
+          "x": 270,
+          "y": 70,
+          "fault": 0,
+          "inst": ""
+        },
+        {
+          "name": "C",
+          "cap": 40,
+          "x": 270,
+          "y": 270,
+          "fault": 0,
+          "inst": ""
+        },
+        {
+          "name": "D",
+          "cap": 100,
+          "x": 450,
+          "y": 170,
+          "fault": 0,
+          "inst": ""
+        }
+      ],
+      "links": [
+        {
+          "a": 0,
+          "b": 1,
+          "delay": 2,
+          "bw": 300
+        },
+        {
+          "a": 0,
+          "b": 2,
+          "delay": 2,
+          "bw": 300
+        },
+        {
+          "a": 1,
+          "b": 3,
+          "delay": 2,
+          "bw": 300
+        },
+        {
+          "a": 2,
+          "b": 3,
+          "delay": 2,
+          "bw": 300
+        }
+      ],
+      "src": 0,
+      "dst": 3,
+      "vnfs": [
+        {
+          "name": "fast",
+          "level": 1,
+          "proc": 5,
+          "dem": 25,
+          "fault": 0
+        },
+        {
+          "name": "slow",
+          "level": 1,
+          "proc": 15,
+          "dem": 25,
+          "fault": 0
+        },
+        {
+          "name": "merge",
+          "level": 2,
+          "proc": 1,
+          "dem": 60,
+          "fault": 0
+        }
+      ],
+      "trep": 0,
+      "tint": 0,
+      "tmax": 1000,
+      "kmax": 256,
+      "rmin": 0,
+      "alpha": 0,
+      "candCap": 2000,
+      "seed": true,
+      "order": true,
+      "compare": true,
+      "breq": 50,
+      "qcpu": 20,
+      "instCap": 100,
+      "wBw": 0.5,
+      "roa": false,
+      "pkt": 1,
+      "isfg": "all",
+      "full": true,
+      "fullMs": 2000,
+      "sync": true,
+      "sMin": 0.5,
+      "sMax": 1.5,
+      "bufMax": 200
+    }
+  },
+  {
+    "label": "Preset X1 — LOA misses f4 ∥ f5",
+    "blurb": "With paper 1’s practical limits (k ≤ 256, 200 candidates), LOA runs f5 then f4 (49 ms). The hybrid runs them in parallel and proves 44 ms optimal.",
+    "cfg": {
+      "nodes": [
+        {
+          "name": "A",
+          "cap": 40,
+          "x": 260,
+          "y": 130,
+          "fault": 0,
+          "inst": ""
+        },
+        {
+          "name": "B",
+          "cap": 40,
+          "x": 90,
+          "y": 130,
+          "fault": 0,
+          "inst": ""
+        },
+        {
+          "name": "C",
+          "cap": 40,
+          "x": 430,
+          "y": 130,
+          "fault": 0,
+          "inst": ""
+        },
+        {
+          "name": "D",
+          "cap": 40,
+          "x": 560,
+          "y": 130,
+          "fault": 0,
+          "inst": ""
+        },
+        {
+          "name": "E",
+          "cap": 30,
+          "x": 430,
+          "y": 280,
+          "fault": 0,
+          "inst": ""
+        }
+      ],
+      "links": [
+        {
+          "a": 1,
+          "b": 0,
+          "delay": 5,
+          "bw": 300
+        },
+        {
+          "a": 2,
+          "b": 0,
+          "delay": 11,
+          "bw": 300
+        },
+        {
+          "a": 3,
+          "b": 2,
+          "delay": 9,
+          "bw": 300
+        },
+        {
+          "a": 4,
+          "b": 2,
+          "delay": 11,
+          "bw": 300
+        }
+      ],
+      "src": 1,
+      "dst": 0,
+      "vnfs": [
+        {
+          "name": "f1",
+          "level": 1,
+          "proc": 12,
+          "dem": 15,
+          "fault": 0
+        },
+        {
+          "name": "f2",
+          "level": 1,
+          "proc": 6,
+          "dem": 15,
+          "fault": 0
+        },
+        {
+          "name": "f3",
+          "level": 1,
+          "proc": 2,
+          "dem": 20,
+          "fault": 0
+        },
+        {
+          "name": "f4",
+          "level": 2,
+          "proc": 11,
+          "dem": 15,
+          "fault": 0
+        },
+        {
+          "name": "f5",
+          "level": 2,
+          "proc": 7,
+          "dem": 25,
+          "fault": 0
+        }
+      ],
+      "trep": 1,
+      "tint": 1,
+      "tmax": 1000,
+      "rmin": 0,
+      "alpha": 0,
+      "seed": true,
+      "order": true,
+      "compare": true,
+      "breq": 50,
+      "qcpu": 20,
+      "instCap": 100,
+      "wBw": 0.5,
+      "roa": true,
+      "pkt": 1,
+      "isfg": "all",
+      "full": true,
+      "fullMs": 20000,
+      "sync": true,
+      "kmax": 256,
+      "candCap": 200,
+      "sMin": 0.5,
+      "sMax": 1.5,
+      "bufMax": 0
+    }
+  },
+  {
+    "label": "Preset X2 — LOA misses the mixed layout",
+    "blurb": "With k ≤ 256 and 200 candidates, LOA chains f1 → f2 → f3 the long way round (55 ms). The hybrid finds (f1 → f3) ∥ f2 on shorter links: 48 ms, proven optimal.",
+    "cfg": {
+      "nodes": [
+        {
+          "name": "A",
+          "cap": 30,
+          "x": 300,
+          "y": 90,
+          "fault": 0,
+          "inst": ""
+        },
+        {
+          "name": "B",
+          "cap": 30,
+          "x": 500,
+          "y": 90,
+          "fault": 0,
+          "inst": ""
+        },
+        {
+          "name": "C",
+          "cap": 30,
+          "x": 110,
+          "y": 90,
+          "fault": 0,
+          "inst": ""
+        },
+        {
+          "name": "D",
+          "cap": 30,
+          "x": 210,
+          "y": 270,
+          "fault": 0,
+          "inst": ""
+        },
+        {
+          "name": "E",
+          "cap": 30,
+          "x": 500,
+          "y": 270,
+          "fault": 0,
+          "inst": ""
+        }
+      ],
+      "links": [
+        {
+          "a": 1,
+          "b": 0,
+          "delay": 8,
+          "bw": 300
+        },
+        {
+          "a": 2,
+          "b": 0,
+          "delay": 11,
+          "bw": 300
+        },
+        {
+          "a": 3,
+          "b": 0,
+          "delay": 11,
+          "bw": 300
+        },
+        {
+          "a": 4,
+          "b": 1,
+          "delay": 9,
+          "bw": 300
+        },
+        {
+          "a": 3,
+          "b": 4,
+          "delay": 9,
+          "bw": 300
+        },
+        {
+          "a": 3,
+          "b": 2,
+          "delay": 7,
+          "bw": 300
+        }
+      ],
+      "src": 3,
+      "dst": 1,
+      "vnfs": [
+        {
+          "name": "f1",
+          "level": 1,
+          "proc": 3,
+          "dem": 20,
+          "fault": 0
+        },
+        {
+          "name": "f2",
+          "level": 1,
+          "proc": 3,
+          "dem": 25,
+          "fault": 0
+        },
+        {
+          "name": "f3",
+          "level": 1,
+          "proc": 5,
+          "dem": 15,
+          "fault": 0
+        },
+        {
+          "name": "f4",
+          "level": 2,
+          "proc": 11,
+          "dem": 15,
+          "fault": 0
+        },
+        {
+          "name": "f5",
+          "level": 2,
+          "proc": 6,
+          "dem": 20,
+          "fault": 0
+        }
+      ],
+      "trep": 2,
+      "tint": 2,
+      "tmax": 1000,
+      "rmin": 0,
+      "alpha": 0,
+      "seed": true,
+      "order": true,
+      "compare": true,
+      "breq": 50,
+      "qcpu": 20,
+      "instCap": 100,
+      "wBw": 0.5,
+      "roa": true,
+      "pkt": 1,
+      "isfg": "all",
+      "full": true,
+      "fullMs": 20000,
+      "sync": true,
+      "kmax": 256,
+      "candCap": 200,
+      "sMin": 0.5,
+      "sMax": 1.5,
+      "bufMax": 0
+    }
   }
 ];

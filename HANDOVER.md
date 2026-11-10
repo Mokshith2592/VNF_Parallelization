@@ -2,7 +2,46 @@
 
 **Audience:** the teammate reviewing this before it's used or merged.
 **Written by:** Claude (the AI that wrote the code), as a self-audit. Treat the claims below as things to verify, not as settled facts. §4 gives the commands to verify them.
-**Date of audit:** 2026-10-24.
+**Date of audit:** 2026-10-24. **Last updated:** 2026-11-10.
+
+## Update 2026-11-10: paper check, new pipeline order, packet sync, new presets
+
+**Read this section and [FLOW.md](FLOW.md) first.** The 2026-10-28 update below and sections 1–6 describe earlier versions; where they disagree with this section, this section is current.
+
+| Area | Before | Now |
+|---|---|---|
+| Pipeline order | VDA → LOA / ROA → full search | **VDA → full search → LOA / ROA only if the search ran out of time.** With `compare` on, LOA / ROA also run for the comparison table, which does not change the answer. Report field `solveMs` is the time the answer needed |
+| SCA | Placement-free delay only | Adds paper 2's average link delay T̂ (Eqs. 15–16) via `scaScore`; the full search keeps `structScore` as its bound |
+| VDA | First shareable node; could add a second instance of a type on a node | Paper 2, Alg. 3: compares delay across shareable nodes up to the first node that can host a new instance; one instance per type per node |
+| Packet sync | – | New `hybrid/sync.cpp`: after the answer, early branches get less CPU and late ones more, so packets reach each merge together. Config `sync`, `sMin`, `sMax`, `bufMax`; report field `sync`; web panel "Merge synchronisation". Our own extension, in neither paper |
+| Search limits | Hard-coded k ≤ 256, 200 candidates in `run_experiments.bat` | `KMAX` (default 1024) and `CAND` (default 200) environment settings; each experiment log reports how often a limit was hit |
+| Experiments | Sweep only | `loa_experiments.exe --paired`: plain LOA and the hybrid on the same request and network state; prints `PAIRED` and `SYNC` lines. New options `--sfc`, `--full-ms` |
+| Results | 10 runs at k ≤ 256 | Sweep re-run with 10 runs per point at k ≤ 1024, network sizes 10–300; same-request test on 1,844 requests (FLOW §11) |
+| Presets | D, E, G, R, S, L | Plus **P** (packet sync), **X1** and **X2** (small networks where LOA at k ≤ 256 loses to the hybrid on latency) |
+| Node limit | 128 | 500 |
+| Repository | Not a git repository | Git repository with remote `origin` = github.com/Mokshith2592/VNF_Parallelization; `cpp/bin/` and `cpp/results/` are ignored |
+
+### What changed in the conclusions
+
+- **Plain LOA's rejections came from our search limits, not from paper 1.** On 46 small instances LOA had failed at k ≤ 256, raising k to 262,144 solved 42 (the other 4 hit a 25 s timeout). With no limits, LOA reached the optimum in all 820 small random networks tried. Do not claim the hybrid beats paper 1's unlimited LOA.
+- **Where the hybrid wins:** under the same practical limits it was never worse than LOA on 1,844 requests, had lower delay on 218, found schemes on 516 that LOA missed, and proved the optimum in milliseconds up to 10 VNFs at 60 nodes. At 12–14 VNFs it is slower than capped LOA and 147 answers are BOUNDED.
+- **LOA's role is now a fallback that has not yet helped:** it ran on 147 requests and improved none.
+
+### Status of earlier findings
+
+- **B1 (ROA "proof" can be wrong): still true, still handled.** ROA's stop is never used as a certificate.
+- **R2 (single-threaded server): still open.** Preset L takes about 9 s because LOA and ROA still run for the comparison table.
+- **R3 (caps hide failures): addressed** by the configurable limits, the "limit hit" column and the same-request test; the limits themselves remain.
+- **R4 (Hybrid differs between programs): changed.** The calculator uses the new pipeline; `--paired` uses the same order; the sweep's "Hybrid" is still VDA-seeded LOA without the full search, and `results.html` labels it that way only in the report and slides.
+- **R5, R7, R8, R9: unchanged.** R7 matters more now: LOA at k = 4096 did not finish one experiment point at 60 nodes in 5 minutes.
+
+### Open items
+
+1. **`web/feasibility.html` is stale**: measured on 2026-10-28, before the SCA / VDA fixes and the new order. Rebuild, then `bin\loa_hybrid.exe --feasibility --out ..\web\data\feasibility.json`.
+2. **Packet sync runs after placement only.** The search does not use it, the experiments did not charge its extra CPU against later requests, ROA schemes are not synchronised, and `bufMax` only reports overflow.
+3. **Reliability formula** still differs from paper 2 (counts this request's VNFs, adds a node fault rate).
+4. **`RESULTS.md` is stale.** The current numbers are in FLOW §11 and in the project report.
+5. **Commit and push** the current working tree.
 
 ## Update 2026-10-28: full-combination search, every I-SFG, logic only in C++
 
@@ -31,7 +70,7 @@ Status of the findings in §5:
 - **R4, R5, R7, R8, R9: unchanged.**
 - **`RESULTS.md` is stale.** The experiments must be re-run with the larger structure space.
 
-> **Repository state:** the project folder is **not a git repository** (`git status` → "not a git repository"), so there is no diff. All AI-written work is in the new folder `loa-hybrid/`, plus one tooling file, `.claude/launch.json`. The pre-existing `loa-walkthrough/` was **not modified**: its files' timestamps (2026-10-23 17:21) are earlier than all `loa-hybrid` files. Run `git init && git add -A && git commit` before reviewing, so later changes can be diffed.
+> **Repository state (2026-10-28; now superseded, see the 2026-11-10 update):** the project folder is **not a git repository** (`git status` → "not a git repository"), so there is no diff. All AI-written work is in the new folder `loa-hybrid/`, plus one tooling file, `.claude/launch.json`. The pre-existing `loa-walkthrough/` was **not modified**: its files' timestamps (2026-10-23 17:21) are earlier than all `loa-hybrid` files. Run `git init && git add -A && git commit` before reviewing, so later changes can be diffed.
 
 ---
 

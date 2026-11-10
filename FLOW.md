@@ -100,6 +100,7 @@ The ingress counts as a VNF with out = |first VNFs|, and the egress as one with 
                                                                                   of time; else only for `compare`
                                       5 hybrid/hybrid.cpp   certify, gapJson,     certificate, paper-1 gap,
                                                             cmpRow, seedEffect    comparison table rows
+                                      6 hybrid/sync.cpp     syncMerges(final)     packet sync at merges (§10)
  render.js renderResult() ◄──────────  report JSON
 ```
 
@@ -113,6 +114,8 @@ The ingress counts as a VNF with out = |first VNFs|, and the egress as one with 
 | `final`, `finalRes` (with `dag`: diagram layout) | `schemeJson()` | scheme cards, diagram, network |
 | `comparison` | `cmpRow()` | comparison table |
 | `seedEffect`, `seedEffectRes` | `seedEffect()` | seed table |
+| `sync` (gap, buffer, latency, CPU before → after; per merge; per VNF speed) | `syncJson()` | "Merge synchronisation" panel |
+| `solveMs` (seed + search, plus LOA only when it was the fallback) | `runHybrid()` | time in the "Final" comparison row |
 
 ---
 
@@ -156,18 +159,26 @@ bin\loa_hybrid.exe tests\preset_g.json  :: one preset from the command line
 - the full search must equal `runBrute()` (every I-SFG × every placement, no pruning) on both objectives, and on the latency of resource ties;
 - the seeded full search must reach the same optimum;
 - LOA, ROA and VDA must never beat it;
-- the placement-free head must equal the sum of the level scores.
+- the placement-free head must equal the sum of the level scores;
+- packet sync (§10) must never raise latency, gap or buffer, must keep speeds in [sMin, sMax] and shared instances at 1, and must not push a node over its capacity.
 
-Last run: 1735 instances checked, all agree. Plain enumeration took 28.4 s and the full search 1.6 s. Paper 1's LOA stopped on its own bound 528 times and was optimal every time. ROA did 373 times and was not optimal in 16 of them.
+Last run (2026-11-01, `--selftest 1500`): 1,297 instances checked, 203 skipped as too large or disconnected, all agree. Paper 1's LOA has never stopped on its own bound above the optimum; ROA has (see HANDOVER B1), so ROA's stop is never used as a proof.
 
-| Preset | Lowest latency | Least resources (cost / latency) | Notes |
-|---|---|---|---|
-| D: parallel wins | 58 ms, OPTIMAL | 0.682 / 58 ms, OPTIMAL | same as before |
-| E: serial wins | 50 ms, OPTIMAL | 0.682 / 50 ms, OPTIMAL | before: OPTIMAL_VERIFIED |
-| **G: branch inside a level** | **68 ms**, OPTIMAL: `f1 → ((f3 → f2) ∥ f4) → f5` | 0.652 / 68 ms, OPTIMAL | stage sequences give 76 ms |
-| R: reliability | 58 ms, OPTIMAL | 0.773 / 76 ms, OPTIMAL | same as before |
-| S: instance reuse | 55 ms, OPTIMAL | 0.282 / 61 ms, OPTIMAL | same as before |
-| L: 8 nodes, 6 VNFs | 67 ms, OPTIMAL | 0.640 / 69 ms, OPTIMAL | before: BOUNDED (5 M schemes, too many for the old exact check) |
+Presets (the web page's buttons; the same configs are in `cpp/tests/preset_*.json`):
+
+| Preset | Lowest latency | What it shows |
+|---|---|---|
+| D: parallel wins | 58 ms, OPTIMAL | f2 ∥ f3 is fastest |
+| E: serial wins | 50 ms, OPTIMAL | heavy copy / merge cost makes serial best |
+| G: branch inside a level | 68 ms, OPTIMAL: `f1 → ((f3 → f2) ∥ f4) → f5` | paper 2, Fig. 1(g); stage sequences give 76 ms |
+| R: reliability | 58 ms, OPTIMAL | R_min = 0.95 stops co-locating VNFs |
+| S: instance reuse | 55 ms, OPTIMAL | ROA shares existing instances |
+| L: 8 nodes, 6 VNFs | 67 ms, OPTIMAL | 5 M schemes; LOA stops on its k limit |
+| P: packet sync | 20 ms, OPTIMAL; 15 ms after sync | 5 ms and 15 ms branches: gap 10 → 0 ms, buffer 500 → 0 kbit |
+| X1: LOA misses f4 ∥ f5 | 44 ms, OPTIMAL (LOA 49, VDA 52) | LOA at k ≤ 256, 200 candidates |
+| X2: LOA misses the mixed layout | 48 ms, OPTIMAL (LOA 55, VDA 58) | `(f1 → f3) ∥ f2`; LOA at k ≤ 256, 200 candidates |
+
+X1 and X2 use the experiments' search limits on purpose. With no limits, LOA reaches 44 and 48 ms too (k = 768 and 3,072); in 820 random small networks, unlimited LOA always reached the optimum.
 
 ---
 
@@ -188,7 +199,7 @@ bin\loa_hybrid.exe --feasibility --runs 5 --budget 10000 --out ..\web\data\feasi
 - **paper setting**: node capacity U[100,300];
 - **tight capacity**: node capacity U[40,80], so a node holds one or two VNFs, like a network loaded by earlier requests.
 
-Results of the run on 2026-10-28 (full tables in `web/feasibility.html`):
+Results of the run on 2026-10-28, before the SCA / VDA fixes and the new pipeline order (full tables in `web/feasibility.html`; re-run the command above to refresh them). The newer same-request test in §11 measures the same question on networks that fill up with requests.
 
 | | Paper setting | Tight capacity |
 |---|---|---|
@@ -212,11 +223,23 @@ Plain enumeration (`runBrute`) stops being usable at about 6 VNFs. The differenc
 
 ```bat
 cd loa-hybrid\cpp
+set PATH=D:\new_software\ucrt64\bin;%PATH%
 build.bat                       :: build and serve http://localhost:8080
 mingw32-make                    :: or: build both programs with the Makefile
 bin\loa_hybrid.exe tests\preset_l.json   :: one config, report JSON on stdout
-run_experiments.bat             :: paper 1's Section V experiments (about 2 hours)
+run_experiments.bat 10          :: paper 1's Section V sweep, 10 runs per point (5–6 hours)
+run_experiments.bat 10 netsize  :: one experiment only
 ```
+
+`run_experiments.bat` reads two limits from the environment, `KMAX` (default 1024) and `CAND` (default 200); paper 1 sets none. It writes `results\<name>.json` through a `.tmp` file, so a stopped run keeps the old results, and copies finished files to `web\data\results\`. Keep the window open and the PC awake until it prints `Done`.
+
+The same-request test (§11) is a mode of the experiment program:
+
+```bat
+bin\loa_experiments.exe --paired --runs 3 --kmax 1024 --cand 200 --full-ms 2000 --only sfclen --out results\paired_sfclen.json
+```
+
+Options: `--only <experiment>`, `--runs N`, `--reqs N` (requests per run), `--sfc N` (chain length for every point), `--kmax`, `--cand`, `--full-ms`, `--staged`.
 
 Pages:
 
@@ -229,30 +252,47 @@ The C++ is plain C++14 and the standard library (plus `ws2_32` on Windows). It w
 ## 8. Folder layout
 
 ```
-cpp/include, cpp/src
-  json       JSON value / parser / writer
-  bigcount   exact (GMP) or saturating counter for huge counts
-  model      config, I-SFG structures, evaluators (latency, resources, feasibility), scheme JSON
-  sca_vda    paper 2: SCA, VDA
-  loa        paper 1: LOA / ROA (one DPG search, two weightings)
-  full       full-combination search + plain enumeration (test oracle)
-  hybrid     orchestration, certificate, comparison rows, /api/check
-  bench      --selftest, --feasibility
-  summary    /api/summary (paper comparison numbers)
-  server     HTTP server: /api/run, /api/check, /api/summary, static files
-  main       entry point
-  experiments  second program: paper 1's Section V
-cpp/tests    preset_*.json, count_sp.py
+cpp/src (headers in cpp/include, same folders)
+  common/  json        JSON value / parser / writer
+           model       config, I-SFG structures, evaluators (latency, resources, feasibility), scheme JSON
+           bigcount    exact (GMP) or saturating counter for huge counts (header only)
+  paper1/  loa         paper 1: LOA / ROA (one DPG search, two weightings)
+  paper2/  sca_vda     paper 2: SCA, VDA
+  hybrid/  hybrid      pipeline, certificate, comparison rows, /api/check
+           full        full-combination search + plain enumeration (test oracle)
+           sync        packet sync at merges (§10)
+           bench       --selftest, --feasibility
+  app/     main        entry point of loa_hybrid.exe
+           server      HTTP server: /api/run, /api/check, /api/summary, static files
+           summary     /api/summary (paper comparison numbers)
+           experiments second program, loa_experiments.exe: paper 1's Section V, --paired
+cpp/tests    preset_*.json (d, e, g, l, r, s, sync, x1, x2), count_sp.py
+cpp/results  raw experiment output (*.json, *.log); not in git
 web/         index.html, feasibility.html, results.html, js/ (render only), data/
 ```
 
 ## 9. Where this differs from the papers
 
-- **I-SFG between levels.** Every last VNF of a level feeds every first VNF of the next (series composition). A branch can't skip a level, as in paper 1's Fig. 3. Inside a level, every series-parallel I-SFG is allowed. Non-series-parallel DAGs (an "N" shape) are not.
-- **Transmission delay.** This is the per-link delay on shortest paths, not paper 1's Eq. 3 term l_u / b_u.
-- **SCA.** It enumerates every I-SFG of a level and takes the lowest placement-free delay. That's a superset of paper 2's incremental construction, and it ignores the average link delay T̂ of Eq. 15.
-- **The ILP (paper 2, Algorithm 1).** It's replaced by the full search, which is exact when it finishes.
-- **Instance reuse, normalisers, reliability, ROA tie-break.** These are as before (HANDOVER §2).
+The code was checked line by line against both papers on 2026-10-30.
+
+**Matches:** the delay model (paper 1, Eqs. 4, 6, 7); LOA / ROA (k = |V|+1 and doubling, feasibility, stability filter, coverage, smallest covering prefix, anchors, both pruning rules); ROA weights and instance reuse; node and instance capacity; paper 2's Theorem 1 bound.
+
+**Fixed after the check:**
+
+- **SCA** now adds paper 2's average link delay T̂ (Eqs. 15–16): `scaScore`, with l̂ = mean shortest delay between node pairs. The full search keeps the placement-free `structScore`, because its bound needs it.
+- **VDA** now follows Alg. 3: it compares delay across nodes that can share an instance, stops at the first node that can host a new one, and keeps at most one instance per type on a node (paper 2, Definition 2).
+
+**Still differs:**
+
+- **Search limits.** Paper 1 keeps doubling k with no limit and has no candidate cap; the code has `kmax` and `candCap` so it always finishes. Every LOA "failure" in the experiments comes from these limits.
+- **I-SFG between levels.** Every last VNF of a level feeds every first VNF of the next (series composition); a branch can't skip a level. Inside a level every series-parallel I-SFG is allowed; non-series-parallel DAGs (an "N" shape) are not.
+- **Transmission delay** is the per-link delay on shortest paths (paper 1, Section V), not Eq. 3's l_u / b_u.
+- **Source fork and egress merge** are charged as copy / merge costs; the papers sum only over VNFs.
+- **SCA's candidate set** is every I-SFG of a level, a superset of paper 2's incremental construction.
+- **VDA** ignores the delay of users already sharing an instance: here sharing does not slow anyone down, so it is the same on every node.
+- **Reliability** counts this request's VNFs on a node and adds a node fault rate; paper 2 counts the users sharing that VNF.
+- **ROA normalisation** during the search uses fixed per-request scales; paper 1's maximums are only known after comparing schemes.
+- **The ILP (paper 2, Algorithm 1)** is replaced by the full search, which is exact when it finishes. Paper 1's Serial, ParaDSP and PODPR baselines are not built; `Serial*` is VDA on an all-serial layout.
 
 ---
 
@@ -269,3 +309,24 @@ After the final scheme is chosen, `syncMerges()` shifts CPU between its VNFs. Ho
 - **Guarantees, checked by `--selftest`:** latency, skew and buffer never rise; speeds stay in range; shared instances stay at 1; no node exceeds its capacity.
 
 `bufMax` only reports overflow; it does not reject a scheme. The certificate refers to the scheme at speed 1, so the latency after synchronisation can be below the certified optimum: it is a different model, with CPU as an extra resource.
+
+Measured with `--paired` (capacity, SFC length, requests and heavy-tailed sweeps, 60 nodes, 3 runs per point): 1,858 of 1,884 requests had an uneven merge. On those, the largest gap fell from 5.12 to 1.40 ms on average, the largest buffer from 336 to 79 kbit, latency from 89.0 to 87.0 ms and CPU from 201 to 195. The extra CPU was not charged against later requests, and ROA schemes are not synchronised.
+
+---
+
+## 11. Results (as of 2026-10-31)
+
+**Same-request test** (`--paired`): each request is solved by plain LOA (k ≤ 1024, 200 candidates) and by the hybrid (VDA, full search with a 2 s budget, LOA fallback) on the same residual network.
+
+| Setting | Requests | LOA found | Hybrid found | Proven optimal | Hybrid lower delay | Delay on both, LOA / hybrid (ms) | Mean time, LOA / hybrid (ms) |
+|---|---|---|---|---|---|---|---|
+| 60 nodes, SFC 5–10 | 540 | 485 | 540 | 540 | 81 of 485 | 86.1 / 84.1 | 494 / 3.5 |
+| 10–300 nodes, SFC 7 | 854 | 795 | 851 | 854 | 105 of 795 | 79.2 / 78.3 | 497 / 0.9 |
+| 60 nodes, SFC 12 | 300 | 40 | 300 | 231 | 29 of 40 | 123.2 / 109.1 | 520 / 754 |
+| 60 nodes, SFC 14 | 150 | 5 | 150 | 72 | 3 of 5 | 159.9 / 126.9 | 374 / 1,345 |
+
+The hybrid was worse on none of the 1,844 requests; the 3 it did not solve were proven to have no scheme. The search ran out of time on 147 requests (SFC 12–14), and LOA as the fallback improved none of them. Starting the search from VDA alone gave the same answers as starting it from LOA on 990 of 990 requests, which is why the pipeline runs the search before LOA.
+
+**Paper 1's sweep** (`run_experiments.bat 10`, k ≤ 1024, 200 candidates, `web/data/results/`): plain LOA accepts 89–99 % of requests and the VDA-seeded hybrid 94–100 %; both beat VDA by about 10–20 ms. LOA still hits a search limit on 65–85 % of requests. In this sweep "Hybrid" is VDA-seeded LOA without the full search, and its delay is averaged over more (harder) accepted requests, so use the same-request test to compare methods.
+
+**What the results mean.** With no search limits, LOA reached the optimum in all 820 small networks tried, as paper 1's Lemma 4.4 predicts. The hybrid's advantage is an exact, certified answer in milliseconds where LOA needs a much larger search, plus the packet sync of §10.
