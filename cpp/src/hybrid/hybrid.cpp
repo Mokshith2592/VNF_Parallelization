@@ -217,9 +217,14 @@ json::Value runHybrid(const json::Value& input) {
   // ── 2. Seed: SCA + VDA (paper 2) ────────────────────────────
   t = nowMs();
   const ScaResult sca = runSCA(M);
+  const double scaMs = msSince(t);
+  t = nowMs();
   const VdaResult vda = runVDA(M, sca.g);
+  const double vdaMs = msSince(t);
+  t = nowMs();
   const VdaAllResult vdaAll = runVDAAllLayouts(M);
-  const double seedMs = msSince(t);
+  const double vdaAllMs = msSince(t);
+  const double seedMs = scaMs + vdaMs + vdaAllMs;
   Scheme seed;
   if (vda.scheme.ok) seed = vda.scheme;
   if (vdaAll.scheme.ok && (!seed.ok || vdaAll.scheme.lat < seed.lat - EPS)) seed = vdaAll.scheme;
@@ -368,9 +373,9 @@ json::Value runHybrid(const json::Value& input) {
     rows.push(r);
   }
   rows.push(cmpRow(M, "VDA", "paper 2 · Algorithm 3", &vda.scheme, final,
-                   vda.scheme.ok ? "Greedy placement of the SCA I-SFG (shares instances when it can)." : vda.failReason, seedMs, ""));
+                   vda.scheme.ok ? "Greedy placement of the SCA I-SFG (shares instances when it can)." : vda.failReason, vdaMs, ""));
   rows.push(cmpRow(M, "VDA, every I-SFG", "paper 2 · extension", &vdaAll.scheme, final,
-                   vdaAll.tried > 0 ? "VDA run on all " + fmt(vdaAll.tried) + " I-SFGs, best kept." : "Skipped: too many I-SFGs.", -1, ""));
+                   vdaAll.tried > 0 ? "VDA run on all " + fmt(vdaAll.tried) + " I-SFGs, best kept." : "Skipped: too many I-SFGs.", vdaAll.tried > 0 ? vdaAllMs : -1, ""));
   if (havePlain)
     rows.push(cmpRow(M, "LOA", "paper 1 · Algorithms 2 + 3", &plain.best, final,
                      std::string("Stop: ") + stopName(plain.stop) + ". " + std::to_string(plain.st.rounds) + " rounds, " + std::to_string(plain.st.anchors) + " anchors.", plain.st.ms, ""));
